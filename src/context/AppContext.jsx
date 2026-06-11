@@ -62,6 +62,7 @@ export const AppProvider = ({ children }) => {
   const [cart, setCart] = useState([]);
   const [selectedMemberId, setSelectedMemberId] = useState('');
   const [currentReceipt, setCurrentReceipt] = useState(null);
+  const [salesHistory, setSalesHistory] = useState([]);
 
   // Auto-generate transaction number
   const generateTrxId = () => {
@@ -206,6 +207,7 @@ export const AppProvider = ({ children }) => {
     };
 
     setCurrentReceipt(receiptData);
+    setSalesHistory(prev => [...prev, receiptData]);
     setCart([]);
     setSelectedMemberId('');
     setCurrentTrxId(generateTrxId()); // Prep next trx ID
@@ -229,7 +231,8 @@ export const AppProvider = ({ children }) => {
         checkoutCart,
         currentTrxId,
         currentReceipt,
-        setCurrentReceipt
+        setCurrentReceipt,
+        salesHistory
       }}
     >
       {children}

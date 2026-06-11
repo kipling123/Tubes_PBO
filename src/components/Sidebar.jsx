@@ -1,15 +1,17 @@
 import React, { useContext } from 'react';
 import { AppContext } from '../context/AppContext';
-import { LayoutDashboard, ShoppingCart, Users, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Users, TrendingUp, Package } from 'lucide-react';
 
-const Sidebar = () => {
+const Sidebar = ({ role }) => {
   const { activeTab, setActiveTab } = useContext(AppContext);
 
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard View', icon: LayoutDashboard },
-    { id: 'cashier', label: 'Transaksi Kasir', icon: ShoppingCart },
-    { id: 'members', label: 'Manajemen Member', icon: Users },
-    { id: 'reports', label: 'Laporan Aset Toko', icon: TrendingUp },
+  const menuItems = role === 'pemilik' ? [
+    { id: 'dashboard', label: 'Dashboard Penjualan', icon: LayoutDashboard },
+    { id: 'reports', label: 'Laporan Aset Toko', icon: TrendingUp }
+  ] : role === 'admin' ? [
+    { id: 'dashboard', label: 'Input Barang', icon: Package }
+  ] : [
+    { id: 'cashier', label: 'Transaksi Kasir', icon: ShoppingCart }
   ];
 
   return (

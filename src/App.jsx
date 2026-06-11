@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { AppContext } from './context/AppContext';
 import Sidebar from './components/Sidebar';
 import AddProductDrawer from './components/AddProductDrawer';
@@ -23,6 +23,7 @@ import {
 function App() {
   const {
     activeTab,
+    setActiveTab,
     products,
     members,
     registerMember,
@@ -35,7 +36,8 @@ function App() {
     checkoutCart,
     currentTrxId,
     currentReceipt,
-    setCurrentReceipt
+    setCurrentReceipt,
+    salesHistory
   } = useContext(AppContext);
 
   // States
@@ -43,6 +45,11 @@ function App() {
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [cashierSearchQuery, setCashierSearchQuery] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [activeRole, setActiveRole] = useState('kasir');
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
 
   // Member Form States
   const [memberName, setMemberName] = useState('');
@@ -65,6 +72,75 @@ function App() {
     if (points >= 1000) return { label: 'Silver', class: 'silver' };
     return { label: 'Bronze', class: 'bronze' };
   };
+
+  const authCredentials = {
+    pemilik: {
+      email: 'owner@toko.com',
+      password: 'owner123'
+    },
+    admin: {
+      email: 'admin@toko.com',
+      password: 'admin123'
+    },
+    kasir: {
+      email: 'kasir@toko.com',
+      password: 'kasir123'
+    }
+  };
+
+  const handleLogin = (event) => {
+    event.preventDefault();
+    setLoginError('');
+
+    const credentials = authCredentials[activeRole];
+    if (!credentials) {
+      setLoginError('Peran tidak valid. Silakan pilih kembali.');
+      return;
+    }
+
+    if (loginEmail.trim() !== credentials.email || loginPassword.trim() !== credentials.password) {
+      setLoginError('Email / password tidak sesuai untuk peran yang dipilih.');
+      return;
+    }
+
+    setIsAuthenticated(true);
+    setLoginError('');
+    setSearchQuery('');
+    setCashierSearchQuery('');
+    setActiveMemberDefault();
+  };
+
+  function setActiveMemberDefault() {
+    if (activeRole === 'kasir') {
+      setActiveTab('cashier');
+    } else if (activeRole === 'admin') {
+      setActiveTab('dashboard');
+    } else {
+      setActiveTab('dashboard');
+    }
+  }
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setActiveRole('kasir');
+    setLoginEmail('');
+    setLoginPassword('');
+    setLoginError('');
+    setSelectedMemberId('');
+  };
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      const availableTabs = activeRole === 'pemilik'
+        ? ['dashboard', 'reports']
+        : activeRole === 'admin'
+          ? ['dashboard']
+          : ['cashier'];
+      if (!availableTabs.includes(activeTab)) {
+        setActiveTab(availableTabs[0]);
+      }
+    }
+  }, [activeRole, activeTab, isAuthenticated, setActiveTab]);
 
   // Dashboard Stats Calculations
   const totalJenis = products.length;
@@ -110,6 +186,21 @@ function App() {
   const cartDiscount = isMember ? Math.round(cartSubtotal * 0.05) : 0;
   const cartPpn = Math.round((cartSubtotal - cartDiscount) * 0.11);
   const cartTotal = cartSubtotal - cartDiscount + cartPpn;
+
+  const totalRevenue = salesHistory.reduce((sum, trx) => sum + trx.total, 0);
+  const totalTransactions = salesHistory.length;
+  const averageTicket = totalTransactions ? Math.round(totalRevenue / totalTransactions) : 0;
+
+  const dashboardTitle = activeRole === 'pemilik'
+    ? 'Dashboard Hasil Penjualan'
+    : activeRole === 'admin'
+      ? 'Dashboard Input Barang'
+      : 'Dashboard Kasir';
+  const dashboardSubtitle = activeRole === 'pemilik'
+    ? 'Lihat ringkasan penjualan, transaksi, dan nilai aset toko Anda.'
+    : activeRole === 'admin'
+      ? 'Kelola inventaris dan catat barang masuk toko.'
+      : 'Tangani transaksi pembeli secara cepat dan akurat.';
 
   // Asset Report calculations
   const electronicsAsset = products
@@ -238,14 +329,94 @@ function App() {
     doc.save('Laporan_Keuangan_Aset_MajuJaya.pdf');
   };
 
+  if (!isAuthenticated) {
+    return (
+      <div className="login-page">
+        <div className="login-card">
+          <div className="login-header">
+            <div>
+              <h1>Toko Maju Jaya</h1>
+              <p>Silakan masuk untuk mengakses fitur pemilik atau kasir/admin.</p>
+            </div>
+          </div>
+
+          <form className="login-form" onSubmit={handleLogin}>
+            <div className="form-group">
+              <label className="form-label">Peran</label>
+              <select
+                className="form-input"
+                value={activeRole}
+                onChange={(e) => setActiveRole(e.target.value)}
+              >
+                <option value="kasir">Kasir</option>
+                <option value="admin">Admin</option>
+                <option value="pemilik">Pemilik Toko</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Email</label>
+              <input
+                type="email"
+                className="form-input"
+                placeholder="owner@toko.com, admin@toko.com, atau kasir@toko.com"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Password</label>
+              <input
+                type="password"
+                className="form-input"
+                placeholder="owner123 atau kasir123"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                required
+              />
+            </div>
+
+            {loginError && <div className="login-error">{loginError}</div>}
+
+            <button type="submit" className="btn-primary" style={{ width: '100%' }}>
+              Masuk
+            </button>
+          </form>
+
+          <div className="login-help">
+            <p>Contoh akun:</p>
+            <p><strong>Pemilik</strong>: owner@toko.com / owner123</p>
+            <p><strong>Admin</strong>: admin@toko.com / admin123</p>
+            <p><strong>Kasir</strong>: kasir@toko.com / kasir123</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="app-container">
       {/* Sidebar Navigation */}
-      <Sidebar />
+      <Sidebar role={activeRole} />
 
       {/* Main Content Area */}
       <main className="main-content">
-        
+        <div className="auth-header">
+          <div>
+            <span className="auth-label">Masuk sebagai</span>
+            <strong>
+              {activeRole === 'pemilik'
+                ? 'Pemilik Toko'
+                : activeRole === 'admin'
+                  ? 'Admin'
+                  : 'Kasir'}
+            </strong>
+          </div>
+          <button className="btn-secondary" onClick={handleLogout}>Logout</button>
+        </div>
+
         {/* VIEW: DASHBOARD / INVENTORY */}
         {activeTab === 'dashboard' && (
           <>
@@ -269,62 +440,64 @@ function App() {
 
             {/* Page Title */}
             <div className="page-title-section">
-              <h1 className="page-title">Ringkasan Inventaris</h1>
-              <p className="page-subtitle">Pantau stok, nilai aset, dan status barang toko Anda di sini.</p>
+              <h1 className="page-title">{dashboardTitle}</h1>
+              <p className="page-subtitle">{dashboardSubtitle}</p>
             </div>
 
             {/* Summary Grid Cards */}
             <div className="summary-grid">
-              {/* Total Jenis */}
               <div className="summary-card">
                 <div className="card-icon-wrapper" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary)' }}>
                   <Package size={24} />
                 </div>
                 <div className="card-info">
-                  <span className="card-label">Total Jenis Barang</span>
+                  <span className="card-label">{activeRole === 'pemilik' ? 'Total Pendapatan' : 'Total Jenis Barang'}</span>
                   <div className="card-value-container">
-                    <span className="card-value">{totalJenis} Jenis</span>
+                    <span className="card-value">{activeRole === 'pemilik' ? formatRupiah(totalRevenue) : `${totalJenis} Jenis`}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Total Aset */}
               <div className="summary-card">
                 <div className="card-icon-wrapper" style={{ backgroundColor: 'var(--success-light)', color: 'var(--success)' }}>
                   <Coins size={24} />
                 </div>
                 <div className="card-info">
-                  <span className="card-label">Total Aset Toko</span>
+                  <span className="card-label">{activeRole === 'pemilik' ? 'Total Transaksi' : 'Total Aset Toko'}</span>
                   <div className="card-value-container">
-                    <span className="card-value">{formatRupiah(totalAset)}</span>
+                    <span className="card-value">{activeRole === 'pemilik' ? `${totalTransactions} Transaksi` : formatRupiah(totalAset)}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Kategori */}
               <div className="summary-card">
                 <div className="card-icon-wrapper" style={{ backgroundColor: 'var(--warning-light)', color: 'var(--warning)' }}>
                   <Folder size={24} />
                 </div>
                 <div className="card-info">
-                  <span className="card-label">Kategori Produk</span>
+                  <span className="card-label">{activeRole === 'pemilik' ? 'Rata-rata Transaksi' : 'Kategori Produk'}</span>
                   <div className="card-value-container">
-                    <span className="card-value">{totalKategori} Kategori</span>
+                    <span className="card-value">{activeRole === 'pemilik' ? formatRupiah(averageTicket) : `${totalKategori} Kategori`}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Stok Menipis */}
               <div className="summary-card">
                 <div className="card-icon-wrapper" style={{ backgroundColor: 'var(--danger-light)', color: 'var(--danger)' }}>
                   <AlertTriangle size={24} />
                 </div>
                 <div className="card-info">
-                  <span className="card-label">Barang Stok Menipis</span>
+                  <span className="card-label">{activeRole === 'pemilik' ? 'Nilai Aset Toko' : 'Barang Stok Menipis'}</span>
                   <div className="card-value-container">
-                    <span className="card-value">{stokMenipisCount} Barang</span>
-                    {stokMenipisCount > 0 && (
-                      <span className="card-badge danger">{totalMenipisUnits} Unit</span>
+                    {activeRole === 'pemilik' ? (
+                      <span className="card-value">{formatRupiah(totalAset)}</span>
+                    ) : (
+                      <>
+                        <span className="card-value">{stokMenipisCount} Barang</span>
+                        {stokMenipisCount > 0 && (
+                          <span className="card-badge danger">{totalMenipisUnits} Unit</span>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -391,8 +564,11 @@ function App() {
           <>
             {/* Header */}
             <div className="page-title-section">
-              <h1 className="page-title">Terminal Transaksi Kasir</h1>
-              <p className="page-subtitle">Kelola penjualan langsung ke pelanggan dan gunakan diskon loyalitas member.</p>
+              <h1 className="page-title">Transaksi Pembeli</h1>
+              <p className="page-subtitle">Tambahkan barang pelanggan, proses pembayaran, lalu cetak struk di akhir transaksi.</p>
+            </div>
+            <div className="alert-box" style={{ marginBottom: '24px' }}>
+              <strong>Langkah Kasir:</strong> pilih barang → tambahkan ke keranjang → pilih member (opsional) → bayar → cetak struk.
             </div>
 
             {/* Cashier Grid */}
@@ -430,11 +606,9 @@ function App() {
                           key={p.id} 
                           className="cart-item" 
                           style={{ 
-                            cursor: isOutOfStock ? 'not-allowed' : 'pointer',
                             opacity: isOutOfStock ? 0.6 : 1,
                             backgroundColor: '#ffffff'
-                          }} 
-                          onClick={() => !isOutOfStock && addToCart(p.id)}
+                          }}
                         >
                           <div className="cart-item-details">
                             <span className="cart-item-name">{p.name}</span>
@@ -451,6 +625,15 @@ function App() {
                             ) : (
                               <span className="badge success" style={{ fontSize: '10px' }}>Stok: {p.stock}</span>
                             )}
+                            <button
+                              type="button"
+                              className="btn-outline"
+                              style={{ fontSize: '12px', padding: '6px 10px', whiteSpace: 'nowrap' }}
+                              disabled={isOutOfStock}
+                              onClick={() => !isOutOfStock && addToCart(p.id)}
+                            >
+                              Tambah
+                            </button>
                           </div>
                         </div>
                       );
