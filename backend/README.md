@@ -47,18 +47,44 @@ http://localhost:3000/api
 
 ## Akun contoh
 
-Akun default yang tersedia setelah backend pertama kali berjalan:
+Akun default dari `database/DB_PBO.sql`:
 
-- Email: admin@store.com
-- Password: admin123
+- Admin: admin@store.com / admin123
+- Kasir: kasir@store.com / kasir123
 
 ## Database
 
-Database yang dipakai adalah:
+Database yang dipakai:
 
 ```text
 tubes_pbo
 ```
+
+File schema dan seed data:
+
+```text
+backend/database/DB_PBO.sql
+```
+
+Saat backend pertama kali dijalankan, file SQL di atas otomatis diimpor jika tabel belum ada. Untuk import manual (misalnya reset database):
+
+```powershell
+cd backend\database
+setup-db.bat
+```
+
+Atau lewat MySQL CLI:
+
+```powershell
+mysql -u root -e "CREATE DATABASE IF NOT EXISTS tubes_pbo;"
+mysql -u root tubes_pbo < backend\database\DB_PBO.sql
+```
+
+Konfigurasi koneksi ada di `src/main/java/services/DatabaseManager.java`:
+
+- Host: localhost:3306
+- User: root
+- Password: (kosong, default XAMPP)
 
 Tabel utama:
 

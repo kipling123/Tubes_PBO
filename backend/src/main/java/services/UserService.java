@@ -20,9 +20,8 @@ public class UserService {
     private final List<User> offlineUsers = new ArrayList<>();
 
     public UserService() {
-        offlineUsers.add(UserFactory.createUser("USR-OWNER", "Pemilik Toko", "owner@toko.com", hashPassword("owner123"), "pemilik"));
-        offlineUsers.add(UserFactory.createUser("USR-ADMIN", "Administrator", "admin@toko.com", hashPassword("admin123"), "admin"));
-        offlineUsers.add(UserFactory.createUser("USR-CASHIER", "Kasir", "kasir@toko.com", hashPassword("kasir123"), "kasir"));
+        offlineUsers.add(UserFactory.createUser("USR-ADMIN", "Administrator", "admin@store.com", hashPassword("admin123"), "admin"));
+        offlineUsers.add(UserFactory.createUser("USR-CASHIER", "Kasir", "kasir@store.com", hashPassword("kasir123"), "kasir"));
     }
 
     public List<Map<String, Object>> getUsers() {
