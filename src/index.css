@@ -132,6 +132,29 @@ input, select {
   margin-bottom: 8px;
 }
 
+.form-toggle-link {
+  background: transparent;
+  border: none;
+  color: var(--primary);
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
+
+.form-toggle-link:hover {
+  color: var(--primary-hover);
+}
+
+.register-success {
+  color: #0f5132;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 12px 14px;
+  background: #d1fae5;
+  border-radius: 12px;
+}
+
 .login-error {
   color: var(--danger);
   font-size: 13px;

@@ -3,12 +3,12 @@ package models;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public class User {
-    private final String id;
-    private final String name;
-    private final String email;
-    private final String password;
-    private final String role;
+public abstract class User {
+    protected final String id;
+    protected final String name;
+    protected final String email;
+    protected final String password;
+    protected final String role;
 
     public User(String id, String name, String email, String password, String role) {
         this.id = id;
@@ -37,6 +37,8 @@ public class User {
     public String getRole() {
         return role;
     }
+
+    public abstract boolean hasAccess(String path, String method);
 
     public Map<String, Object> toMap() {
         Map<String, Object> result = new LinkedHashMap<String, Object>();

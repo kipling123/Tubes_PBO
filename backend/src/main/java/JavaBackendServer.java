@@ -15,6 +15,7 @@ import java.util.regex.Pattern;
 import models.Member;
 import models.Product;
 import models.User;
+import models.UserFactory;
 import services.StoreService;
 
 public class JavaBackendServer {
@@ -52,6 +53,10 @@ public class JavaBackendServer {
 
         if ("/api/products".equals(path)) {
             if ("GET".equals(method)) {
+                if (!checkAccess(exchange, null, "/api/products", "GET")) {
+                    respondJson(exchange, Collections.singletonMap("message", "Akses ditolak."), 403);
+                    return;
+                }
                 respondJson(exchange, storeService.getProducts());
             } else if ("POST".equals(method)) {
                 handleCreateProduct(exchange);
@@ -71,6 +76,10 @@ public class JavaBackendServer {
 
         if ("/api/members".equals(path)) {
             if ("GET".equals(method)) {
+                if (!checkAccess(exchange, null, "/api/members", "GET")) {
+                    respondJson(exchange, Collections.singletonMap("message", "Akses ditolak."), 403);
+                    return;
+                }
                 respondJson(exchange, storeService.getMembers());
             } else if ("POST".equals(method)) {
                 handleCreateMember(exchange);
@@ -89,6 +98,11 @@ public class JavaBackendServer {
 
         if ("/api/auth/login".equals(path) && "POST".equals(method)) {
             handleLogin(exchange);
+            return;
+        }
+
+        if ("/api/auth/register".equals(path) && "POST".equals(method)) {
+            handleRegister(exchange);
             return;
         }
 
@@ -113,8 +127,8 @@ public class JavaBackendServer {
     private void handleCreateProduct(HttpExchange exchange) throws IOException {
         try {
             Map<String, Object> payload = parseJsonObject(readBody(exchange));
-            if (!isAllowedRole(exchange, payload)) {
-                respondJson(exchange, Collections.singletonMap("message", "Akses ditolak. Hanya kasir dan admin yang bisa mengubah data."), 403);
+            if (!checkAccess(exchange, payload, "/api/products", "POST")) {
+                respondJson(exchange, Collections.singletonMap("message", "Akses ditolak. Hanya admin yang bisa menambah produk."), 403);
                 return;
             }
 
@@ -133,8 +147,8 @@ public class JavaBackendServer {
         try {
             Map<String, Object> payload = parseJsonObject(readBody(exchange));
             payload.put("id", productId);
-            if (!isAllowedRole(exchange, payload)) {
-                respondJson(exchange, Collections.singletonMap("message", "Akses ditolak. Hanya kasir dan admin yang bisa mengubah data."), 403);
+            if (!checkAccess(exchange, payload, "/api/products", "PUT")) {
+                respondJson(exchange, Collections.singletonMap("message", "Akses ditolak. Hanya admin yang bisa mengubah produk."), 403);
                 return;
             }
 
@@ -150,10 +164,8 @@ public class JavaBackendServer {
 
     private void handleDeleteProduct(HttpExchange exchange, String productId) throws IOException {
         try {
-            Map<String, Object> payload = new LinkedHashMap<String, Object>();
-            payload.put("id", productId);
-            if (!isAllowedRole(exchange, payload)) {
-                respondJson(exchange, Collections.singletonMap("message", "Akses ditolak. Hanya kasir dan admin yang bisa mengubah data."), 403);
+            if (!checkAccess(exchange, null, "/api/products", "DELETE")) {
+                respondJson(exchange, Collections.singletonMap("message", "Akses ditolak. Hanya admin yang bisa menghapus produk."), 403);
                 return;
             }
 
@@ -170,8 +182,8 @@ public class JavaBackendServer {
     private void handleCreateMember(HttpExchange exchange) throws IOException {
         try {
             Map<String, Object> payload = parseJsonObject(readBody(exchange));
-            if (!isAllowedRole(exchange, payload)) {
-                respondJson(exchange, Collections.singletonMap("message", "Akses ditolak. Hanya kasir dan admin yang bisa mengubah data."), 403);
+            if (!checkAccess(exchange, payload, "/api/members", "POST")) {
+                respondJson(exchange, Collections.singletonMap("message", "Akses ditolak. Hanya kasir dan admin yang bisa menambah member."), 403);
                 return;
             }
 
@@ -188,8 +200,8 @@ public class JavaBackendServer {
 
     private void handleGetUsers(HttpExchange exchange) throws IOException {
         try {
-            if (!isAdmin(exchange, null)) {
-                respondJson(exchange, Collections.singletonMap("message", "Akses ditolak. Hanya admin yang bisa melihat data pengguna."), 403);
+            if (!checkAccess(exchange, null, "/api/users", "GET")) {
+                respondJson(exchange, Collections.singletonMap("message", "Akses ditolak. Hanya admin dan pemilik yang bisa melihat data pengguna."), 403);
                 return;
             }
             respondJson(exchange, storeService.getUsers());
@@ -201,7 +213,7 @@ public class JavaBackendServer {
     private void handleCreateUser(HttpExchange exchange) throws IOException {
         try {
             Map<String, Object> payload = parseJsonObject(readBody(exchange));
-            if (!isAdmin(exchange, payload)) {
+            if (!checkAccess(exchange, payload, "/api/users", "POST")) {
                 respondJson(exchange, Collections.singletonMap("message", "Akses ditolak. Hanya admin yang bisa membuat akun pengguna."), 403);
                 return;
             }
@@ -227,12 +239,29 @@ public class JavaBackendServer {
         }
     }
 
+    private void handleRegister(HttpExchange exchange) throws IOException {
+        try {
+            Map<String, Object> payload = parseJsonObject(readBody(exchange));
+            User user = storeService.addUser(payload);
+            Map<String, Object> response = new LinkedHashMap<String, Object>();
+            response.put("success", true);
+            response.put("message", "Registrasi berhasil");
+            response.put("user", user.toMap());
+            respondJson(exchange, response, 201);
+        } catch (RuntimeException e) {
+            Map<String, Object> response = new LinkedHashMap<String, Object>();
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            respondJson(exchange, response, 500);
+        }
+    }
+
     private void handleUpdateMember(HttpExchange exchange, String memberId) throws IOException {
         try {
             Map<String, Object> payload = parseJsonObject(readBody(exchange));
             payload.put("id", memberId);
-            if (!isAllowedRole(exchange, payload)) {
-                respondJson(exchange, Collections.singletonMap("message", "Akses ditolak. Hanya kasir dan admin yang bisa mengubah data."), 403);
+            if (!checkAccess(exchange, payload, "/api/members", "PUT")) {
+                respondJson(exchange, Collections.singletonMap("message", "Akses ditolak. Hanya kasir dan admin yang bisa mengubah member."), 403);
                 return;
             }
 
@@ -248,10 +277,8 @@ public class JavaBackendServer {
 
     private void handleDeleteMember(HttpExchange exchange, String memberId) throws IOException {
         try {
-            Map<String, Object> payload = new LinkedHashMap<String, Object>();
-            payload.put("id", memberId);
-            if (!isAllowedRole(exchange, payload)) {
-                respondJson(exchange, Collections.singletonMap("message", "Akses ditolak. Hanya kasir dan admin yang bisa mengubah data."), 403);
+            if (!checkAccess(exchange, null, "/api/members", "DELETE")) {
+                respondJson(exchange, Collections.singletonMap("message", "Akses ditolak. Hanya kasir dan admin yang bisa menghapus member."), 403);
                 return;
             }
 
@@ -266,8 +293,20 @@ public class JavaBackendServer {
     }
 
     private void handleCheckout(HttpExchange exchange) throws IOException {
-        Map<String, Object> payload = parseJsonObject(readBody(exchange));
-        respondJson(exchange, storeService.checkout(payload));
+        try {
+            String body = readBody(exchange);
+            Map<String, Object> payload = parseJsonObject(body);
+            payload.put("raw_body", body);
+
+            if (!checkAccess(exchange, payload, "/api/checkout", "POST")) {
+                respondJson(exchange, Collections.singletonMap("message", "Akses ditolak. Hanya kasir yang bisa melakukan transaksi."), 403);
+                return;
+            }
+
+            respondJson(exchange, storeService.checkout(payload));
+        } catch (RuntimeException e) {
+            respondJson(exchange, Collections.singletonMap("message", e.getMessage()), 500);
+        }
     }
 
     private String readBody(HttpExchange exchange) throws IOException {
@@ -300,19 +339,13 @@ public class JavaBackendServer {
         exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type, X-Role");
     }
 
-    private boolean isAllowedRole(HttpExchange exchange, Map<String, Object> payload) {
+    private boolean checkAccess(HttpExchange exchange, Map<String, Object> payload, String path, String method) {
         String role = resolveRole(exchange, payload);
-        if (role == null) {
+        if (role == null || role.isEmpty()) {
             return false;
         }
-
-        String normalizedRole = role.toLowerCase();
-        return "kasir".equals(normalizedRole) || "admin".equals(normalizedRole);
-    }
-
-    private boolean isAdmin(HttpExchange exchange, Map<String, Object> payload) {
-        String role = resolveRole(exchange, payload);
-        return role != null && "admin".equals(role.toLowerCase());
+        User user = UserFactory.createUser("temp", "temp", "temp", "", role);
+        return user.hasAccess(path, method);
     }
 
     private String resolveRole(HttpExchange exchange, Map<String, Object> payload) {

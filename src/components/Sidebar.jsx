@@ -11,7 +11,8 @@ const Sidebar = ({ role }) => {
   ] : role === 'admin' ? [
     { id: 'dashboard', label: 'Input Barang', icon: Package }
   ] : [
-    { id: 'cashier', label: 'Transaksi Kasir', icon: ShoppingCart }
+    { id: 'cashier', label: 'Transaksi Kasir', icon: ShoppingCart },
+    { id: 'members', label: 'Manajemen Member', icon: Users }
   ];
 
   return (

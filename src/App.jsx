@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { AppContext } from './context/AppContext';
 import Sidebar from './components/Sidebar';
-import AddProductDrawer from './components/AddProductDrawer';
+import AddProductDrawer from './components/tambahProduk';
 import { jsPDF } from 'jspdf';
 import { 
   Plus, 
@@ -40,7 +40,6 @@ function App() {
     salesHistory
   } = useContext(AppContext);
 
-  // States
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -50,13 +49,21 @@ function App() {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [registerRole, setRegisterRole] = useState('kasir');
+  const [registerEmail, setRegisterEmail] = useState('');
+  const [registerUsername, setRegisterUsername] = useState('');
+  const [registerPassword, setRegisterPassword] = useState('');
+  const [registerError, setRegisterError] = useState('');
+  const [registerSuccess, setRegisterSuccess] = useState('');
+  const [registeredUsers, setRegisteredUsers] = useState([]);
 
-  // Member Form States
+  // fungsi buat member
   const [memberName, setMemberName] = useState('');
   const [memberEmail, setMemberEmail] = useState('');
   const [memberPoints, setMemberPoints] = useState('');
 
-  // Helper: Format to IDR
+  // format keunganan ke Rupiah
   const formatRupiah = (num) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -66,7 +73,7 @@ function App() {
     }).format(num || 0);
   };
 
-  // Helper: Get Member Badge Level
+  // member level berdasarkan poin
   const getMemberLevel = (points) => {
     if (points >= 2000) return { label: 'Gold', class: 'gold' };
     if (points >= 1000) return { label: 'Silver', class: 'silver' };
@@ -91,14 +98,17 @@ function App() {
   const handleLogin = (event) => {
     event.preventDefault();
     setLoginError('');
+    setRegisterSuccess('');
 
     const credentials = authCredentials[activeRole];
-    if (!credentials) {
-      setLoginError('Peran tidak valid. Silakan pilih kembali.');
-      return;
-    }
+    const isBuiltInValid = credentials && loginEmail.trim() === credentials.email && loginPassword.trim() === credentials.password;
+    const registeredUser = registeredUsers.find((user) =>
+      user.role === activeRole &&
+      user.email === loginEmail.trim() &&
+      user.password === loginPassword.trim()
+    );
 
-    if (loginEmail.trim() !== credentials.email || loginPassword.trim() !== credentials.password) {
+    if (!isBuiltInValid && !registeredUser) {
       setLoginError('Email / password tidak sesuai untuk peran yang dipilih.');
       return;
     }
@@ -108,6 +118,42 @@ function App() {
     setSearchQuery('');
     setCashierSearchQuery('');
     setActiveMemberDefault();
+  };
+
+  const handleRegisterSubmit = (event) => {
+    event.preventDefault();
+    setRegisterError('');
+    setRegisterSuccess('');
+
+    if (!registerEmail.trim() || !registerUsername.trim() || !registerPassword.trim()) {
+      setRegisterError('Semua field wajib diisi.');
+      return;
+    }
+    if (registerPassword.length < 6) {
+      setRegisterError('Password minimal 6 karakter.');
+      return;
+    }
+    if (registeredUsers.some((user) => user.email === registerEmail.trim())) {
+      setRegisterError('Email sudah terdaftar. Silakan gunakan email lain atau masuk.');
+      return;
+    }
+
+    setRegisteredUsers((prev) => [
+      ...prev,
+      {
+        role: registerRole,
+        email: registerEmail.trim(),
+        username: registerUsername.trim(),
+        password: registerPassword,
+      }
+    ]);
+
+    setRegisterSuccess('Akun berhasil dibuat. Silakan masuk dengan data Anda.');
+    setIsRegisterMode(false);
+    setRegisterEmail('');
+    setRegisterUsername('');
+    setRegisterPassword('');
+    setRegisterRole('kasir');
   };
 
   function setActiveMemberDefault() {
@@ -132,10 +178,10 @@ function App() {
   useEffect(() => {
     if (isAuthenticated) {
       const availableTabs = activeRole === 'pemilik'
-        ? ['dashboard', 'reports']
-        : activeRole === 'admin'
-          ? ['dashboard']
-          : ['cashier'];
+          ? ['dashboard', 'reports']
+          : activeRole === 'admin'
+            ? ['dashboard']
+            : ['cashier', 'members'];
       if (!availableTabs.includes(activeTab)) {
         setActiveTab(availableTabs[0]);
       }
@@ -336,60 +382,156 @@ function App() {
           <div className="login-header">
             <div>
               <h1>Toko Maju Jaya</h1>
-              <p>Silakan masuk untuk mengakses fitur pemilik atau kasir/admin.</p>
+              <p>{isRegisterMode ? 'Daftar akun baru menggunakan email, role, username, dan password.' : 'Silakan masuk untuk mengakses fitur pemilik atau kasir/admin.'}</p>
             </div>
           </div>
 
-          <form className="login-form" onSubmit={handleLogin}>
-            <div className="form-group">
-              <label className="form-label">Peran</label>
-              <select
-                className="form-input"
-                value={activeRole}
-                onChange={(e) => setActiveRole(e.target.value)}
-              >
-                <option value="kasir">Kasir</option>
-                <option value="admin">Admin</option>
-                <option value="pemilik">Pemilik Toko</option>
-              </select>
-            </div>
+          {isRegisterMode ? (
+            <form className="login-form" onSubmit={handleRegisterSubmit}>
+              <div className="form-group">
+                <label className="form-label">Peran</label>
+                <select
+                  className="form-input"
+                  value={registerRole}
+                  onChange={(e) => setRegisterRole(e.target.value)}
+                >
+                  <option value="kasir">Kasir</option>
+                  <option value="admin">Admin</option>
+                  <option value="pemilik">Pemilik</option>
+                </select>
+              </div>
 
-            <div className="form-group">
-              <label className="form-label">Email</label>
-              <input
-                type="email"
-                className="form-input"
-                placeholder="owner@toko.com, admin@toko.com, atau kasir@toko.com"
-                value={loginEmail}
-                onChange={(e) => setLoginEmail(e.target.value)}
-                required
-              />
-            </div>
+              <div className="form-group">
+                <label className="form-label">Email</label>
+                <input
+                  type="email"
+                  className="form-input"
+                  placeholder="Contoh: nama@toko.com"
+                  value={registerEmail}
+                  onChange={(e) => setRegisterEmail(e.target.value)}
+                  required
+                />
+              </div>
 
-            <div className="form-group">
-              <label className="form-label">Password</label>
-              <input
-                type="password"
-                className="form-input"
-                placeholder="owner123 atau kasir123"
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                required
-              />
-            </div>
+              <div className="form-group">
+                <label className="form-label">Username</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Contoh: rafihaf"
+                  value={registerUsername}
+                  onChange={(e) => setRegisterUsername(e.target.value)}
+                  required
+                />
+              </div>
 
-            {loginError && <div className="login-error">{loginError}</div>}
+              <div className="form-group">
+                <label className="form-label">Password</label>
+                <input
+                  type="password"
+                  className="form-input"
+                  placeholder="Minimal 6 karakter"
+                  value={registerPassword}
+                  onChange={(e) => setRegisterPassword(e.target.value)}
+                  required
+                />
+              </div>
 
-            <button type="submit" className="btn-primary" style={{ width: '100%' }}>
-              Masuk
-            </button>
-          </form>
+              {registerError && <div className="login-error">{registerError}</div>}
+              {registerSuccess && <div className="register-success">{registerSuccess}</div>}
+
+              <button type="submit" className="btn-primary" style={{ width: '100%' }}>
+                Daftar
+              </button>
+            </form>
+          ) : (
+            <form className="login-form" onSubmit={handleLogin}>
+              <div className="form-group">
+                <label className="form-label">Peran</label>
+                <select
+                  className="form-input"
+                  value={activeRole}
+                  onChange={(e) => setActiveRole(e.target.value)}
+                >
+                  <option value="kasir">Kasir</option>
+                  <option value="admin">Admin</option>
+                  <option value="pemilik">Pemilik Toko</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Email</label>
+                <input
+                  type="email"
+                  className="form-input"
+                  placeholder="owner@toko.com, admin@toko.com, atau kasir@toko.com"
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Password</label>
+                <input
+                  type="password"
+                  className="form-input"
+                  placeholder="owner123 atau kasir123"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  required
+                />
+              </div>
+
+              {loginError && <div className="login-error">{loginError}</div>}
+              {registerSuccess && <div className="register-success">{registerSuccess}</div>}
+
+              <button type="submit" className="btn-primary" style={{ width: '100%' }}>
+                Masuk
+              </button>
+            </form>
+          )}
 
           <div className="login-help">
-            <p>Contoh akun:</p>
-            <p><strong>Pemilik</strong>: owner@toko.com / owner123</p>
-            <p><strong>Admin</strong>: admin@toko.com / admin123</p>
-            <p><strong>Kasir</strong>: kasir@toko.com / kasir123</p>
+            {isRegisterMode ? (
+              <p>
+                Sudah punya akun?{' '}
+                <button
+                  type="button"
+                  className="form-toggle-link"
+                  onClick={() => {
+                    setIsRegisterMode(false);
+                    setRegisterError('');
+                    setRegisterSuccess('');
+                  }}
+                >
+                  Masuk di sini
+                </button>
+              </p>
+            ) : (
+              <p>
+                Belum punya akun?{' '}
+                <button
+                  type="button"
+                  className="form-toggle-link"
+                  onClick={() => {
+                    setIsRegisterMode(true);
+                    setLoginError('');
+                  }}
+                >
+                  Daftar sekarang
+                </button>
+              </p>
+            )}
+            <p>Registrasi menggunakan Email, Peran, Username, dan Password.</p>
+            {!isRegisterMode && (
+              <>
+                <p>Contoh akun:</p>
+                <p><strong>Pemilik</strong>: owner@toko.com / owner123</p>
+                <p><strong>Admin</strong>: admin@toko.com / admin123</p>
+                <p><strong>Kasir</strong>: kasir@toko.com / kasir123</p>
+              </>
+            )}
           </div>
         </div>
       </div>
