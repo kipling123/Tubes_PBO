@@ -6,7 +6,7 @@ const Sidebar = ({ role }) => {
   const { activeTab, setActiveTab } = useContext(AppContext);
 
   const menuItems = role === 'pemilik' ? [
-    { id: 'dashboard', label: 'Dashboard Penjualan', icon: LayoutDashboard },
+    { id: 'dashboard', label: 'Dashboard  Penjualan', icon: LayoutDashboard },
     { id: 'reports', label: 'Laporan Aset Toko', icon: TrendingUp }
   ] : role === 'admin' ? [
     { id: 'dashboard', label: 'Input Barang', icon: Package }
