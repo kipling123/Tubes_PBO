@@ -1,7 +1,5 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { AppContext } from './context/AppContext';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 import Sidebar from './components/Sidebar';
 import AddProductDrawer from './components/tambahProduk';
 import { jsPDF } from 'jspdf';
@@ -19,9 +17,7 @@ import {
   FileSpreadsheet, 
   X, 
   Sparkles,
-  Printer,
-  Moon,
-  Sun
+  Printer
 } from 'lucide-react';
 
 function App() {
@@ -61,21 +57,6 @@ function App() {
   const [registerError, setRegisterError] = useState('');
   const [registerSuccess, setRegisterSuccess] = useState('');
   const [registeredUsers, setRegisteredUsers] = useState([]);
-  const [theme, setTheme] = useState(() => {
-    if (typeof window === 'undefined') {
-      return 'light';
-    }
-    return localStorage.getItem('app-theme') || 'light';
-  });
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('app-theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme((prevTheme) => (prevTheme === 'dark' ? 'light' : 'dark'));
-  };
 
   // fungsi buat member
   const [memberName, setMemberName] = useState('');
@@ -114,43 +95,10 @@ function App() {
     }
   };
 
-  const handleLogin = async (event) => {
+  const handleLogin = (event) => {
     event.preventDefault();
     setLoginError('');
     setRegisterSuccess('');
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Role': activeRole
-        },
-        body: JSON.stringify({
-          email: loginEmail.trim(),
-          password: loginPassword,
-          role: activeRole
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || 'Email atau password salah.');
-      }
-
-      const userRole = String(data.user?.role || activeRole).toLowerCase();
-      localStorage.setItem('appRole', userRole);
-      setActiveRole(userRole);
-      setIsAuthenticated(true);
-      setLoginError('');
-      setSearchQuery('');
-      setCashierSearchQuery('');
-      setActiveMemberDefault();
-      return;
-    } catch (error) {
-      // Fallback untuk akun bawaan jika backend belum tersedia.
-    }
 
     const credentials = authCredentials[activeRole];
     const isBuiltInValid = credentials && loginEmail.trim() === credentials.email && loginPassword.trim() === credentials.password;
@@ -165,8 +113,6 @@ function App() {
       return;
     }
 
-    localStorage.setItem('appRole', activeRole);
-
     setIsAuthenticated(true);
     setLoginError('');
     setSearchQuery('');
@@ -174,7 +120,7 @@ function App() {
     setActiveMemberDefault();
   };
 
-  const handleRegisterSubmit = async (event) => {
+  const handleRegisterSubmit = (event) => {
     event.preventDefault();
     setRegisterError('');
     setRegisterSuccess('');
@@ -192,48 +138,22 @@ function App() {
       return;
     }
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Role': registerRole
-        },
-        body: JSON.stringify({
-          name: registerUsername.trim(),
-          email: registerEmail.trim(),
-          password: registerPassword,
-          role: registerRole
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Registrasi gagal.');
+    setRegisteredUsers((prev) => [
+      ...prev,
+      {
+        role: registerRole,
+        email: registerEmail.trim(),
+        username: registerUsername.trim(),
+        password: registerPassword,
       }
+    ]);
 
-      setRegisteredUsers((prev) => [
-        ...prev,
-        {
-          id: data.user?.id || `USR-${Date.now()}`,
-          role: data.user?.role || registerRole,
-          email: data.user?.email || registerEmail.trim(),
-          username: data.user?.name || registerUsername.trim(),
-          password: registerPassword,
-          name: data.user?.name || registerUsername.trim()
-        }
-      ]);
-
-      setRegisterSuccess('Akun berhasil dibuat dan tersimpan ke database. Silakan masuk dengan data Anda.');
-      setIsRegisterMode(false);
-      setRegisterEmail('');
-      setRegisterUsername('');
-      setRegisterPassword('');
-      setRegisterRole('kasir');
-    } catch (error) {
-      setRegisterError(error.message || 'Gagal menyimpan akun ke server.');
-    }
+    setRegisterSuccess('Akun berhasil dibuat. Silakan masuk dengan data Anda.');
+    setIsRegisterMode(false);
+    setRegisterEmail('');
+    setRegisterUsername('');
+    setRegisterPassword('');
+    setRegisterRole('kasir');
   };
 
   function setActiveMemberDefault() {
@@ -247,7 +167,6 @@ function App() {
   }
 
   const handleLogout = () => {
-    localStorage.removeItem('appRole');
     setIsAuthenticated(false);
     setActiveRole('kasir');
     setLoginEmail('');
@@ -465,15 +384,6 @@ function App() {
               <h1>Toko Maju Jaya</h1>
               <p>{isRegisterMode ? 'Daftar akun baru menggunakan email, role, username, dan password.' : 'Silakan masuk untuk mengakses fitur pemilik atau kasir/admin.'}</p>
             </div>
-            <button
-              type="button"
-              className="theme-toggle-btn"
-              onClick={toggleTheme}
-              aria-label={theme === 'dark' ? 'Aktifkan mode terang' : 'Aktifkan mode gelap'}
-            >
-              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-              <span>{theme === 'dark' ? 'Terang' : 'Gelap'}</span>
-            </button>
           </div>
 
           {isRegisterMode ? (
@@ -646,13 +556,7 @@ function App() {
                   : 'Kasir'}
             </strong>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <button type="button" className="theme-toggle-btn theme-toggle-btn--inline" onClick={toggleTheme} aria-label={theme === 'dark' ? 'Aktifkan mode terang' : 'Aktifkan mode gelap'}>
-              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-              <span>{theme === 'dark' ? 'Terang' : 'Gelap'}</span>
-            </button>
-            <button className="btn-secondary" onClick={handleLogout}>Logout</button>
-          </div>
+          <button className="btn-secondary" onClick={handleLogout}>Logout</button>
         </div>
 
         {/* VIEW: DASHBOARD / INVENTORY */}
