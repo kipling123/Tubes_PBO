@@ -116,6 +116,7 @@ body {
   color: var(--text-main);
   line-height: 1.5;
   overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 html[data-theme='dark'] .login-page {
@@ -1521,4 +1522,99 @@ html[data-theme='dark'] .product-name,
 html[data-theme='dark'] .product-price, 
 html[data-theme='dark'] .custom-table td {
   color: #f8fafc !important; /* Memaksa teks nama produk & harga jadi Putih Terang */
+}
+
+/* Theme Toggle Button */
+.btn-theme-toggle {
+  background-color: var(--surface-muted);
+  color: var(--text-main);
+  border: 1px solid var(--panel-border);
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  font-weight: 500;
+}
+
+.btn-theme-toggle:hover {
+  background-color: var(--surface-hover);
+  border-color: var(--primary);
+}
+
+.btn-theme-toggle:active {
+  transform: scale(0.95);
+}
+
+/* Print Styles - Hide modal elements during printing */
+@media print {
+  body {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    min-height: 100vh !important;
+  }
+  
+  /* Hide sidebar, main content, and top nav */
+  .sidebar,
+  .main-content > :not(.modal-overlay),
+  .top-nav {
+    display: none !important;
+  }
+  
+  /* Show modal overlay but center it */
+  .modal-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    background: none !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    padding: 0 !important;
+  }
+  
+  /* Show modal content centered */
+  .modal-content {
+    max-width: 400px !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: white !important;
+    margin: 0 !important;
+  }
+  
+  /* Hide modal header with close button */
+  .modal-header {
+    display: none !important;
+  }
+  
+  /* Show modal body with receipt */
+  .modal-body {
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
+  /* Hide modal footer with buttons */
+  .modal-footer {
+    display: none !important;
+  }
+  
+  /* Style receipt for printing */
+  .receipt-wrapper {
+    margin: 0 !important;
+    padding: 20px !important;
+    border: none !important;
+    background: white !important;
+    max-height: none !important;
+    overflow: visible !important;
+    page-break-inside: avoid;
+  }
 }

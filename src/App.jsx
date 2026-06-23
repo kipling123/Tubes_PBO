@@ -17,7 +17,9 @@ import {
   FileSpreadsheet, 
   X, 
   Sparkles,
-  Printer
+  Printer,
+  Moon,
+  Sun
 } from 'lucide-react';
 
 function App() {
@@ -57,11 +59,22 @@ function App() {
   const [registerError, setRegisterError] = useState('');
   const [registerSuccess, setRegisterSuccess] = useState('');
   const [registeredUsers, setRegisteredUsers] = useState([]);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   // fungsi buat member
   const [memberName, setMemberName] = useState('');
   const [memberEmail, setMemberEmail] = useState('');
   const [memberPoints, setMemberPoints] = useState('');
+
+  // Theme toggle effect
+  useEffect(() => {
+    const htmlElement = document.documentElement;
+    if (isDarkMode) {
+      htmlElement.setAttribute('data-theme', 'dark');
+    } else {
+      htmlElement.removeAttribute('data-theme');
+    }
+  }, [isDarkMode]);
 
   // format keunganan ke Rupiah
   const formatRupiah = (num) => {
@@ -556,7 +569,16 @@ function App() {
                   : 'Kasir'}
             </strong>
           </div>
-          <button className="btn-secondary" onClick={handleLogout}>Logout</button>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <button 
+              className="btn-theme-toggle"
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              title={isDarkMode ? 'Mode Terang' : 'Mode Gelap'}
+            >
+              {isDarkMode ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+            <button className="btn-secondary" onClick={handleLogout}>Logout</button>
+          </div>
         </div>
 
         {/* VIEW: DASHBOARD / INVENTORY */}
