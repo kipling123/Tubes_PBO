@@ -20,10 +20,10 @@ Saya menyatakan bahwa saya:
 
 | Nama Anggota | NIM | Kontribusi Tugas | Tanda Tangan |
 | :--- | :--- | :--- | :--- |
-| **Rafi Ikbar Fahrezy** | 130122XXXX | Backend Django Architecture, Cloud Design, CRUD Entities | [Tanda Tangan] |
-| **Anggota Kelompok 2** | 130122XXXX | Frontend React POS, Wireframe, UI Components | [Tanda Tangan] |
-| **Anggota Kelompok 3** | 130122XXXX | Use Case Diagram, Scalability Analysis, Testing | [Tanda Tangan] |
-| **Anggota Kelompok 4** | 130122XXXX | Load Balancing Algorithms & Technical Documentation | [Tanda Tangan] |
+| **Rafi Ikbar Fahrezy** | 103012400289 | Perancangan Arsitektur Backend Django REST API, Desain Topologi Komputasi Awan AWS, Rekayasa Layanan CRUD Multi-Entitas, dan Penyusunan Laporan Teknis | [Tanda Tangan] |
+| **Anggota Kelompok 2** | 103012400289 | Frontend React POS, Wireframe, UI Components | [Tanda Tangan] |
+| **Anggota Kelompok 3** | 103012400289 | Use Case Diagram, Scalability Analysis, Testing | [Tanda Tangan] |
+| **Anggota Kelompok 4** | 103012400289 | Load Balancing Algorithms & Technical Documentation | [Tanda Tangan] |
 
 ---
 
