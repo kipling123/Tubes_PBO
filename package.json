@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "be": "cd backend && run.bat",
+    "be": "cd backend_django && python manage.py runserver 8000",
+    "be:django": "cd backend_django && python manage.py runserver 8000",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"

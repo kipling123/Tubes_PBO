@@ -1,0 +1,326 @@
+{
+  "PRODUCTS": [
+    {
+      "id": "BRG-001",
+      "name": "Kulkas Showcase LG Smart",
+      "category": "Elektronik",
+      "price": 7500000,
+      "stock": 12,
+      "details": "24 Bulan Garansi Resmi"
+    },
+    {
+      "id": "BRG-002",
+      "name": "Rice Bowl Premium",
+      "category": "Makanan",
+      "price": 35000,
+      "stock": 26,
+      "details": "Kedaluwarsa: Des 2026"
+    },
+    {
+      "id": "BRG-003",
+      "name": "Smart TV 43 Inch",
+      "category": "Elektronik",
+      "price": 4200000,
+      "stock": 8,
+      "details": "Garansi Resmi 1 Tahun"
+    },
+    {
+      "id": "BRG-004",
+      "name": "Susu UHT 1 Liter",
+      "category": "Makanan",
+      "price": 18000,
+      "stock": 55,
+      "details": "Kedaluwarsa: Jan 2027"
+    }
+  ],
+  "MEMBERS": [
+    {
+      "id": "MBR-001",
+      "name": "Ahmad Dani",
+      "email": "ahmad@gmail.com",
+      "phone": "081234567890",
+      "points": 1250,
+      "level": "Silver"
+    },
+    {
+      "id": "MBR-002",
+      "name": "Siti Nurhaliza",
+      "email": "siti@gmail.com",
+      "phone": "081987654321",
+      "points": 2400,
+      "level": "Gold"
+    },
+    {
+      "id": "MBR-003",
+      "name": "Budi Santoso",
+      "email": "budi@yahoo.com",
+      "phone": "082111222333",
+      "points": 450,
+      "level": "Bronze"
+    },
+    {
+      "id": "MBR-004",
+      "name": "Dewi Sartika",
+      "email": "dewi@telkomuniversity.ac.id",
+      "phone": "081299998888",
+      "points": 1507,
+      "level": "Silver"
+    },
+    {
+      "id": "MBR-005",
+      "name": "Dewi Sartika",
+      "email": "dewi@telkomuniversity.ac.id",
+      "phone": "081299998888",
+      "points": 1507,
+      "level": "Silver"
+    },
+    {
+      "id": "MBR-006",
+      "name": "Dewi Sartika",
+      "email": "dewi@telkomuniversity.ac.id",
+      "phone": "081299998888",
+      "points": 1507,
+      "level": "Silver"
+    },
+    {
+      "id": "MBR-007",
+      "name": "Dewi Sartika",
+      "email": "dewi@telkomuniversity.ac.id",
+      "phone": "081299998888",
+      "points": 1507,
+      "level": "Silver"
+    },
+    {
+      "id": "MBR-008",
+      "name": "Dewi Sartika",
+      "email": "dewi@telkomuniversity.ac.id",
+      "phone": "081299998888",
+      "points": 1506,
+      "level": "Silver"
+    },
+    {
+      "id": "MBR-009",
+      "name": "Dewi Sartika",
+      "email": "dewi@telkomuniversity.ac.id",
+      "phone": "081299998888",
+      "points": 1506,
+      "level": "Silver"
+    },
+    {
+      "id": "MBR-010",
+      "name": "Dewi Sartika",
+      "email": "dewi@telkomuniversity.ac.id",
+      "phone": "081299998888",
+      "points": 1506,
+      "level": "Silver"
+    }
+  ],
+  "TRANSACTIONS": [
+    {
+      "id": "TRX-0001",
+      "date": "2026-11-20 14:32:00",
+      "member_id": "MBR-001",
+      "member_name": "Ahmad Dani",
+      "cashier_name": "Kasir Utama",
+      "items": [
+        {
+          "id": "BRG-002",
+          "name": "Rice Bowl Premium",
+          "category": "Makanan",
+          "price": 35000,
+          "quantity": 2,
+          "total": 70000
+        },
+        {
+          "id": "BRG-004",
+          "name": "Susu UHT 1 Liter",
+          "category": "Makanan",
+          "price": 18000,
+          "quantity": 1,
+          "total": 18000
+        }
+      ],
+      "subtotal": 88000,
+      "discount": 4400,
+      "ppn": 9196,
+      "total": 92796,
+      "status": "COMPLETED"
+    },
+    {
+      "id": "TRX-0002",
+      "date": "2026-11-24 13:07:00",
+      "member_id": "MBR-004",
+      "member_name": "Dewi Sartika",
+      "cashier_name": "Kasir Rafi",
+      "items": [
+        {
+          "id": "BRG-002",
+          "name": "Rice Bowl Premium",
+          "category": "Makanan",
+          "price": 35000,
+          "quantity": 2,
+          "total": 70000
+        }
+      ],
+      "subtotal": 70000,
+      "discount": 3500,
+      "ppn": 7315,
+      "total": 73815,
+      "status": "COMPLETED"
+    },
+    {
+      "id": "TRX-0003",
+      "date": "2026-11-24 13:37:28",
+      "member_id": "MBR-005",
+      "member_name": "Dewi Sartika",
+      "cashier_name": "Kasir Rafi",
+      "items": [
+        {
+          "id": "BRG-002",
+          "name": "Rice Bowl Premium",
+          "category": "Makanan",
+          "price": 35000,
+          "quantity": 2,
+          "total": 70000
+        }
+      ],
+      "subtotal": 70000,
+      "discount": 3500,
+      "ppn": 7315,
+      "total": 73815,
+      "status": "COMPLETED"
+    },
+    {
+      "id": "TRX-0004",
+      "date": "2026-11-24 13:47:54",
+      "member_id": "MBR-006",
+      "member_name": "Dewi Sartika",
+      "cashier_name": "Kasir Rafi",
+      "items": [
+        {
+          "id": "BRG-002",
+          "name": "Rice Bowl Premium",
+          "category": "Makanan",
+          "price": 35000,
+          "quantity": 2,
+          "total": 70000
+        }
+      ],
+      "subtotal": 70000,
+      "discount": 3500,
+      "ppn": 7315,
+      "total": 73815,
+      "status": "COMPLETED"
+    },
+    {
+      "id": "TRX-0005",
+      "date": "2026-11-24 13:55:53",
+      "member_id": "MBR-007",
+      "member_name": "Dewi Sartika",
+      "cashier_name": "Kasir Rafi",
+      "items": [
+        {
+          "id": "BRG-002",
+          "name": "Rice Bowl Premium",
+          "category": "Makanan",
+          "price": 35000,
+          "quantity": 2,
+          "total": 70000
+        }
+      ],
+      "subtotal": 70000,
+      "discount": 3500,
+      "ppn": 7315,
+      "total": 73815,
+      "status": "COMPLETED"
+    },
+    {
+      "id": "TRX-0006",
+      "date": "2026-11-24 14:04:48",
+      "member_id": "MBR-008",
+      "member_name": "Dewi Sartika",
+      "cashier_name": "Kasir Rafi",
+      "items": [
+        {
+          "id": "BRG-002",
+          "name": "Rice Bowl Premium",
+          "category": "Makanan",
+          "price": 35000,
+          "quantity": 2,
+          "total": 70000
+        }
+      ],
+      "subtotal": 70000,
+      "discount": 3500,
+      "ppn": 665,
+      "total": 67165,
+      "status": "COMPLETED"
+    },
+    {
+      "id": "TRX-0007",
+      "date": "2026-11-24 14:11:33",
+      "member_id": "MBR-009",
+      "member_name": "Dewi Sartika",
+      "cashier_name": "Kasir Rafi",
+      "items": [
+        {
+          "id": "BRG-002",
+          "name": "Rice Bowl Premium",
+          "category": "Makanan",
+          "price": 35000,
+          "quantity": 2,
+          "total": 70000
+        }
+      ],
+      "subtotal": 70000,
+      "discount": 3500,
+      "ppn": 665,
+      "total": 67165,
+      "payment_method": "Tunai",
+      "cash_received": 67165.0,
+      "change": 0.0,
+      "status": "COMPLETED"
+    },
+    {
+      "id": "TRX-0008",
+      "date": "2026-11-24 14:29:18",
+      "member_id": "MBR-010",
+      "member_name": "Dewi Sartika",
+      "cashier_name": "Kasir Rafi",
+      "items": [
+        {
+          "id": "BRG-002",
+          "name": "Rice Bowl Premium",
+          "category": "Makanan",
+          "price": 35000,
+          "quantity": 2,
+          "total": 70000
+        }
+      ],
+      "subtotal": 70000,
+      "discount": 3500,
+      "ppn": 665,
+      "total": 67165,
+      "payment_method": "Tunai",
+      "cash_received": 67165.0,
+      "change": 0.0,
+      "status": "COMPLETED"
+    }
+  ],
+  "USERS": [
+    {
+      "id": "USR-001",
+      "username": "admin",
+      "email": "admin@store.com",
+      "role": "pemilik",
+      "password": "admin123"
+    },
+    {
+      "id": "USR-002",
+      "username": "kasir",
+      "email": "kasir@store.com",
+      "role": "kasir",
+      "password": "kasir123"
+    }
+  ]
+}

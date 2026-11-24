@@ -779,17 +779,19 @@ html[data-theme='dark'] .theme-toggle-btn {
 
 .drawer-header {
   padding: 24px;
-  background-color: var(--bg-dark);
-  color: #1e1717;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  color: #ffffff;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .drawer-title {
   font-size: 20px;
   font-weight: 700;
+  color: #ffffff !important;
 }
 
 .drawer-desc {
-  font-size: 12px;
+  font-size: 13px;
   color: #94a3b8;
   margin-top: 4px;
 }
@@ -1617,4 +1619,732 @@ html[data-theme='dark'] .custom-table td {
     overflow: visible !important;
     page-break-inside: avoid;
   }
+}
+
+
+/* ===================================================
+   MAJU POS SPLIT LOGIN SCREEN (MATCHING DESIGN)
+   =================================================== */
+.maju-login-page {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  background: linear-gradient(135deg, #dbeafe 0%, #eef6ff 50%, #bae6fd 100%);
+  position: relative;
+  overflow-x: hidden;
+}
+
+.maju-login-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 1080px;
+  width: 100%;
+  gap: 40px;
+}
+
+.maju-login-left {
+  flex: 1.2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 580px;
+}
+
+.maju-hero-image {
+  width: 100%;
+  height: auto;
+  border-radius: 28px;
+  object-fit: contain;
+  box-shadow: 0 20px 45px rgba(29, 128, 247, 0.15);
+  transition: transform 0.3s ease;
+}
+
+.maju-hero-image:hover {
+  transform: translateY(-2px);
+}
+
+.maju-login-card {
+  flex: 1;
+  max-width: 430px;
+  width: 100%;
+  background: #ffffff;
+  border-radius: 32px;
+  padding: 40px 32px;
+  box-shadow: 0 24px 55px rgba(37, 99, 235, 0.12), 0 4px 16px rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(224, 238, 255, 0.9);
+}
+
+.maju-card-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.maju-logo-box {
+  width: 86px;
+  height: 82px;
+  border-radius: 24px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.28);
+}
+
+.maju-app-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.maju-card-title {
+  font-size: 28px;
+  font-weight: 800;
+  color: #1d4ed8;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.5px;
+}
+
+.maju-card-tagline {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0 0 18px 0;
+  font-weight: 500;
+}
+
+.maju-card-divider {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #cbd5e1 30%, #cbd5e1 70%, transparent);
+}
+
+.maju-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.maju-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.maju-field-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.maju-label-icon {
+  color: #2563eb;
+}
+
+.maju-input {
+  width: 100%;
+  height: 48px;
+  border-radius: 14px;
+  border: 1.5px solid #dbeafe;
+  background: #f0f7ff;
+  padding: 0 16px;
+  font-size: 14px;
+  color: #0f172a;
+  transition: all 0.2s ease;
+  outline: none;
+  font-family: inherit;
+}
+
+.maju-input:focus {
+  border-color: #2563eb;
+  background: #ffffff;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+.maju-select {
+  cursor: pointer;
+  appearance: auto;
+}
+
+.maju-password-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.maju-input-password {
+  padding-right: 46px;
+}
+
+.maju-toggle-password-btn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 8px;
+  transition: color 0.2s;
+}
+
+.maju-toggle-password-btn:hover {
+  color: #1e293b;
+}
+
+.maju-btn-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 50px;
+  margin-top: 8px;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.35);
+  transition: all 0.2s ease;
+}
+
+.maju-btn-submit:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 30px rgba(37, 99, 235, 0.42);
+  filter: brightness(1.05);
+}
+
+.maju-btn-submit:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 900px) {
+  .maju-login-wrapper {
+    flex-direction: column;
+    gap: 28px;
+  }
+  .maju-login-left {
+    max-width: 440px;
+  }
+  .maju-login-card {
+    max-width: 440px;
+    padding: 32px 24px;
+  }
+}
+
+
+/* Dark mode support for Maju POS Login */
+html[data-theme='dark'] .maju-login-page {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+}
+
+html[data-theme='dark'] .maju-login-card {
+  background: #1e293b;
+  border-color: #334155;
+  box-shadow: 0 24px 55px rgba(0, 0, 0, 0.4);
+}
+
+html[data-theme='dark'] .maju-card-title {
+  color: #60a5fa;
+}
+
+html[data-theme='dark'] .maju-card-tagline {
+  color: #94a3b8;
+}
+
+html[data-theme='dark'] .maju-field-label {
+  color: #e2e8f0;
+}
+
+html[data-theme='dark'] .maju-input {
+  background: #0f172a;
+  border-color: #334155;
+  color: #f8fafc;
+}
+
+html[data-theme='dark'] .maju-toggle-password-btn {
+  color: #94a3b8;
+}
+
+
+/* Switch mode link (Daftar / Masuk) */
+.maju-switch-mode {
+  text-align: center;
+  font-size: 13.5px;
+  color: #64748b;
+  margin-top: 14px;
+}
+
+.maju-switch-link {
+  background: transparent;
+  border: none;
+  color: #2563eb;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0 4px;
+  text-decoration: underline;
+  font-size: 13.5px;
+  font-family: inherit;
+  transition: color 0.2s ease;
+}
+
+.maju-switch-link:hover {
+  color: #1d4ed8;
+}
+
+html[data-theme='dark'] .maju-switch-mode {
+  color: #94a3b8;
+}
+
+html[data-theme='dark'] .maju-switch-link {
+  color: #60a5fa;
+}
+
+
+/* ===================================================
+   CASHFLOW, FINANCIAL REPORT, TEAM ACCESS, SALES RECAP
+   (ADAPTED FROM DASHBOARD-SANTAI-SCALE-V2)
+   =================================================== */
+.tab-pane-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: fadeIn 0.25s ease-in-out;
+}
+
+.pane-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.pane-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.pane-subtitle {
+  font-size: 13.5px;
+  color: var(--text-muted);
+}
+
+.filter-controls-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: var(--bg-secondary);
+  padding: 14px 18px;
+  border-radius: 14px;
+  border: 1px solid var(--border-color);
+}
+
+.filter-pill-btn {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filter-pill-btn:hover {
+  background: var(--bg-hover);
+}
+
+.filter-pill-btn.active {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+}
+
+.table-responsive-card {
+  background: var(--bg-secondary);
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
+}
+
+.modern-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13.5px;
+}
+
+.modern-table th {
+  background: var(--bg-hover);
+  padding: 14px 18px;
+  font-weight: 700;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border-color);
+  text-transform: uppercase;
+  font-size: 11.5px;
+  letter-spacing: 0.5px;
+}
+
+.modern-table td {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-main);
+}
+
+.modern-table tbody tr:hover {
+  background: var(--bg-hover);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.badge-success {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.badge-danger {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.badge-warning {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.badge-info {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.btn-icon-danger {
+  background: transparent;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.btn-icon-danger:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+/* Modal Backdrop & Box */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-box {
+  background: var(--bg-secondary);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  animation: modalPop 0.2s ease-out;
+}
+
+.modal-header {
+  padding: 18px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h3 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.modal-header button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.modal-form {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+
+/* ===================================================
+   PRODUCT ROW ACTION PILL & DROPDOWN (EDIT / ATUR STOK / HAPUS)
+   =================================================== */
+.product-action-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.btn-pill-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #f1f5f9;
+  color: #1e40af;
+  border: 1px solid #cbd5e1;
+  border-radius: 20px;
+  padding: 4px 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.btn-pill-edit:hover {
+  background: #e0e7ff;
+  color: #1d4ed8;
+  border-color: #93c5fd;
+  transform: translateY(-1px);
+}
+
+.product-action-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.15);
+  min-width: 160px;
+  padding: 6px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.dropdown-action-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.dropdown-action-item:hover {
+  background: var(--bg-hover);
+}
+
+.dropdown-action-item.danger {
+  color: #dc2626;
+}
+
+.dropdown-action-item.danger:hover {
+  background: #fee2e2;
+}
+
+html[data-theme='dark'] .btn-pill-edit {
+  background: #1e293b;
+  border-color: #334155;
+  color: #93c5fd;
+}
+
+html[data-theme='dark'] .btn-pill-edit:hover {
+  background: #334155;
+  color: #bfdbfe;
+}
+
+
+/* ===================================================
+   METRIC STATS GRID & MODERN STAT CARDS
+   (FOR SALES RECAP, CASHFLOW, FINANCIAL REPORTS)
+   =================================================== */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+.stat-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+  transition: all 0.2s ease;
+  min-height: 120px;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+}
+
+.stat-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.card-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  display: block;
+}
+
+.card-value {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-main);
+  line-height: 1.25;
+  margin: 4px 0;
+  display: block;
+}
+
+.stat-icon-wrapper {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stat-subtext {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  display: block;
+}
+
+
+/* ===================================================
+   CHECKOUT PAYMENT MODAL STYLES
+   =================================================== */
+.payment-modal-box {
+  background: var(--bg-secondary);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 580px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  animation: modalPop 0.2s ease-out;
+}
+
+.payment-method-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.payment-method-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.payment-method-card:hover {
+  border-color: var(--primary);
+  background: var(--bg-hover);
+}
+
+.payment-method-card.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+html[data-theme='dark'] .payment-method-card.active {
+  background: rgba(37, 99, 235, 0.2);
+  color: #93c5fd;
+  border-color: #3b82f6;
+}
+
+.payment-items-list {
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 10px 14px;
+  background: var(--bg-hover);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }

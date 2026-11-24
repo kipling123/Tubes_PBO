@@ -19,8 +19,28 @@ import {
   Sparkles,
   Printer,
   Moon,
-  Sun
+  Sun,
+  User,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  LogIn,
+  ChevronDown,
+  Layers,
+  Edit3,
+  Banknote,
+  QrCode,
+  CreditCard,
+  Building2,
+  CheckCircle2
 } from 'lucide-react';
+import loginIllustration from './assets/login-illustration.png';
+import loginAppIcon from './assets/login-app-icon.png';
+import CashflowView from './components/CashflowView';
+import FinancialReportsView from './components/FinancialReportsView';
+import TeamAccessView from './components/TeamAccessView';
+import SalesRecapView from './components/SalesRecapView';
 
 function App() {
   const {
@@ -39,17 +59,39 @@ function App() {
     currentTrxId,
     currentReceipt,
     setCurrentReceipt,
-    salesHistory
+    salesHistory,
+    updateProduct,
+    deleteProduct
   } = useContext(AppContext);
 
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('Tunai'); // 'Tunai', 'QRIS', 'Debit', 'Transfer Bank'
+  const [cashGiven, setCashGiven] = useState('');
+
+  // Modal & Dropdown Aksi Produk (Atur Stok, Edit, Hapus)
+  const [activeActionMenu, setActiveActionMenu] = useState(null);
+  const [adjustStockModalItem, setAdjustStockModalItem] = useState(null);
+  const [adjustMode, setAdjustMode] = useState('add'); // 'add', 'subtract', 'set'
+  const [adjustQty, setAdjustQty] = useState('');
+  
+  const [editProductModalItem, setEditProductModalItem] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editCategory, setEditCategory] = useState('Elektronik');
+  const [editPrice, setEditPrice] = useState('');
+  const [editDetails, setEditDetails] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [cashierSearchQuery, setCashierSearchQuery] = useState('');
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [activeRole, setActiveRole] = useState('kasir');
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return localStorage.getItem('pos_authenticated') === 'true';
+  });
+  const [activeRole, setActiveRole] = useState(() => {
+    return localStorage.getItem('pos_active_role') || 'kasir';
+  });
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [isRegisterMode, setIsRegisterMode] = useState(false);
   const [registerRole, setRegisterRole] = useState('kasir');
@@ -58,7 +100,14 @@ function App() {
   const [registerPassword, setRegisterPassword] = useState('');
   const [registerError, setRegisterError] = useState('');
   const [registerSuccess, setRegisterSuccess] = useState('');
-  const [registeredUsers, setRegisteredUsers] = useState([]);
+  const [registeredUsers, setRegisteredUsers] = useState(() => {
+    try {
+      const saved = localStorage.getItem('pos_registered_users');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   // fungsi buat member
@@ -113,24 +162,44 @@ function App() {
     setLoginError('');
     setRegisterSuccess('');
 
+    const trimmedEmail = loginEmail.trim().toLowerCase();
+    const trimmedPass = loginPassword.trim();
+
+    // 1. Cek akun bawaan
     const credentials = authCredentials[activeRole];
-    const isBuiltInValid = credentials && loginEmail.trim() === credentials.email && loginPassword.trim() === credentials.password;
-    const registeredUser = registeredUsers.find((user) =>
-      user.role === activeRole &&
-      user.email === loginEmail.trim() &&
-      user.password === loginPassword.trim()
+    const isBuiltInValid = credentials && trimmedEmail === credentials.email.toLowerCase() && trimmedPass === credentials.password;
+
+    // 2. Cek akun yang didaftarkan (baca state & localStorage)
+    let currentUsers = registeredUsers;
+    try {
+      const saved = localStorage.getItem('pos_registered_users');
+      if (saved) currentUsers = JSON.parse(saved);
+    } catch {}
+
+    const registeredUser = currentUsers.find((user) =>
+      user.email.trim().toLowerCase() === trimmedEmail &&
+      user.password === trimmedPass
     );
 
     if (!isBuiltInValid && !registeredUser) {
-      setLoginError('Email / password tidak sesuai untuk peran yang dipilih.');
+      setLoginError('Email / password tidak sesuai atau akun belum terdaftar.');
       return;
     }
 
+    const targetRole = registeredUser ? registeredUser.role : activeRole;
+    setActiveRole(targetRole);
     setIsAuthenticated(true);
+    localStorage.setItem('pos_authenticated', 'true');
+    localStorage.setItem('pos_active_role', targetRole);
     setLoginError('');
     setSearchQuery('');
     setCashierSearchQuery('');
-    setActiveMemberDefault();
+
+    if (targetRole === 'kasir') {
+      setActiveTab('cashier');
+    } else {
+      setActiveTab('dashboard');
+    }
   };
 
   const handleRegisterSubmit = (event) => {
@@ -138,30 +207,67 @@ function App() {
     setRegisterError('');
     setRegisterSuccess('');
 
-    if (!registerEmail.trim() || !registerUsername.trim() || !registerPassword.trim()) {
+    const trimmedEmail = registerEmail.trim();
+    const trimmedUsername = registerUsername.trim();
+    const trimmedPass = registerPassword.trim();
+
+    if (!trimmedEmail || !trimmedUsername || !trimmedPass) {
       setRegisterError('Semua field wajib diisi.');
       return;
     }
-    if (registerPassword.length < 6) {
+    if (trimmedPass.length < 6) {
       setRegisterError('Password minimal 6 karakter.');
       return;
     }
-    if (registeredUsers.some((user) => user.email === registerEmail.trim())) {
-      setRegisterError('Email sudah terdaftar. Silakan gunakan email lain atau masuk.');
+
+    let currentUsers = registeredUsers;
+    try {
+      const saved = localStorage.getItem('pos_registered_users');
+      if (saved) currentUsers = JSON.parse(saved);
+    } catch {}
+
+    if (currentUsers.some((user) => user.email.toLowerCase() === trimmedEmail.toLowerCase())) {
+      setRegisterError('Email sudah terdaftar. Silakan gunakan email lain atau langsung masuk.');
       return;
     }
 
-    setRegisteredUsers((prev) => [
-      ...prev,
-      {
-        role: registerRole,
-        email: registerEmail.trim(),
-        username: registerUsername.trim(),
-        password: registerPassword,
-      }
-    ]);
+    const newUser = {
+      role: registerRole,
+      email: trimmedEmail,
+      username: trimmedUsername,
+      password: trimmedPass,
+    };
 
-    setRegisterSuccess('Akun berhasil dibuat. Silakan masuk dengan data Anda.');
+    const updated = [...currentUsers, newUser];
+    setRegisteredUsers(updated);
+    try {
+      localStorage.setItem('pos_registered_users', JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
+    }
+
+    // Simpan ke backend Django
+    try {
+      fetch('http://127.0.0.1:8000/api/users/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newUser)
+      }).catch(() => {});
+    } catch {}
+
+    // Otomatis langsung masuk sesuai peran yang dipilih saat daftar
+    const targetRole = registerRole;
+    setActiveRole(targetRole);
+    setIsAuthenticated(true);
+    localStorage.setItem('pos_authenticated', 'true');
+    localStorage.setItem('pos_active_role', targetRole);
+
+    if (targetRole === 'kasir') {
+      setActiveTab('cashier');
+    } else {
+      setActiveTab('dashboard');
+    }
+
     setIsRegisterMode(false);
     setRegisterEmail('');
     setRegisterUsername('');
@@ -172,15 +278,15 @@ function App() {
   function setActiveMemberDefault() {
     if (activeRole === 'kasir') {
       setActiveTab('cashier');
-    } else if (activeRole === 'admin') {
-      setActiveTab('dashboard');
     } else {
-      setActiveTab('dashboard');
+      setActiveTab('cashflow');
     }
   }
 
   const handleLogout = () => {
     setIsAuthenticated(false);
+    localStorage.removeItem('pos_authenticated');
+    localStorage.removeItem('pos_active_role');
     setActiveRole('kasir');
     setLoginEmail('');
     setLoginPassword('');
@@ -188,15 +294,42 @@ function App() {
     setSelectedMemberId('');
   };
 
+  const handleAddUser = (user) => {
+    const updated = [...registeredUsers, user];
+    setRegisteredUsers(updated);
+    try {
+      localStorage.setItem('pos_registered_users', JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
+    }
+    try {
+      fetch('http://127.0.0.1:8000/api/users/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(user)
+      }).catch(() => {});
+    } catch {}
+  };
+
+  const handleDeleteUser = (email) => {
+    if (confirm(`Yakin ingin menghapus akun staf dengan email ${email}?`)) {
+      const updated = registeredUsers.filter(u => u.email !== email);
+      setRegisteredUsers(updated);
+      try {
+        localStorage.setItem('pos_registered_users', JSON.stringify(updated));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  };
+
   useEffect(() => {
     if (isAuthenticated) {
-      const availableTabs = activeRole === 'pemilik'
-          ? ['dashboard', 'reports']
-          : activeRole === 'admin'
-            ? ['dashboard']
-            : ['cashier', 'members'];
-      if (!availableTabs.includes(activeTab)) {
-        setActiveTab(availableTabs[0]);
+      const kasirTabs = ['cashier', 'sales_recap', 'inventory', 'members'];
+      const ownerTabs = ['cashflow', 'financial_reports', 'team_access'];
+      const allowedTabs = activeRole === 'kasir' ? kasirTabs : ownerTabs;
+      if (!allowedTabs.includes(activeTab)) {
+        setActiveTab(allowedTabs[0]);
       }
     }
   }, [activeRole, activeTab, isAuthenticated, setActiveTab]);
@@ -222,6 +355,63 @@ function App() {
     );
   });
 
+  // Handler Aksi Manajemen Stok: Atur Stok
+  const openAdjustStock = (product) => {
+    setAdjustStockModalItem(product);
+    setAdjustMode('add');
+    setAdjustQty('10');
+  };
+
+  const handleSaveAdjustStock = (e) => {
+    e.preventDefault();
+    if (!adjustStockModalItem) return;
+    const delta = Number(adjustQty) || 0;
+    let newStock = adjustStockModalItem.stock;
+    if (adjustMode === 'add') {
+      newStock += delta;
+    } else if (adjustMode === 'subtract') {
+      newStock = Math.max(0, newStock - delta);
+    } else if (adjustMode === 'set') {
+      newStock = Math.max(0, delta);
+    }
+
+    updateProduct(adjustStockModalItem.id, { stock: newStock });
+    setAdjustStockModalItem(null);
+  };
+
+  // Handler Aksi Manajemen Stok: Edit Produk
+  const openEditProduct = (product) => {
+    setEditProductModalItem(product);
+    setEditName(product.name);
+    setEditCategory(product.category || 'Elektronik');
+    setEditPrice(String(product.price));
+    setEditDetails(product.details || '');
+  };
+
+  const handleSaveEditProduct = (e) => {
+    e.preventDefault();
+    if (!editProductModalItem) return;
+    if (!editName || !editPrice) {
+      alert('Nama dan harga wajib diisi!');
+      return;
+    }
+
+    updateProduct(editProductModalItem.id, {
+      name: editName.trim(),
+      category: editCategory,
+      price: Number(editPrice),
+      details: editDetails.trim() || '-'
+    });
+    setEditProductModalItem(null);
+  };
+
+  // Handler Aksi Manajemen Stok: Hapus Produk
+  const handleDeleteProduct = (product) => {
+    if (confirm(`Yakin ingin menghapus produk "${product.name}" (${product.id}) dari inventaris?`)) {
+      deleteProduct(product.id);
+    }
+  };
+
   // Filtered Products for Cashier Selection
   const filteredCashierProducts = products.filter(p => {
     const q = cashierSearchQuery.toLowerCase();
@@ -241,9 +431,10 @@ function App() {
     };
   });
   const cartSubtotal = cartDetails.reduce((sum, item) => sum + item.total, 0);
+  const selectedMember = members.find(m => m.id === selectedMemberId);
   const isMember = !!selectedMemberId;
   const cartDiscount = isMember ? Math.round(cartSubtotal * 0.05) : 0;
-  const cartPpn = Math.round((cartSubtotal - cartDiscount) * 0.11);
+  const cartPpn = Math.round((cartSubtotal - cartDiscount) * 0.01);
   const cartTotal = cartSubtotal - cartDiscount + cartPpn;
 
   const totalRevenue = salesHistory.reduce((sum, trx) => sum + trx.total, 0);
@@ -390,160 +581,204 @@ function App() {
 
   if (!isAuthenticated) {
     return (
-      <div className="login-page">
-        <div className="login-card">
-          <div className="login-header">
-            <div>
-              <h1>Toko Maju Jaya</h1>
-              <p>{isRegisterMode ? 'Daftar akun baru menggunakan email, role, username, dan password.' : 'Silakan masuk untuk mengakses fitur pemilik atau kasir/admin.'}</p>
-            </div>
+      <div className="maju-login-page">
+        <div className="maju-login-wrapper">
+          {/* Sisi Kiri: Ilustrasi Karakter & Fitur Toko */}
+          <div className="maju-login-left">
+            <img 
+              src={loginIllustration} 
+              alt="Maju POS - Kelola Toko Anda dengan Lebih Mudah" 
+              className="maju-hero-image"
+            />
           </div>
 
-          {isRegisterMode ? (
-            <form className="login-form" onSubmit={handleRegisterSubmit}>
-              <div className="form-group">
-                <label className="form-label">Peran</label>
-                <select
-                  className="form-input"
-                  value={registerRole}
-                  onChange={(e) => setRegisterRole(e.target.value)}
-                >
-                  <option value="kasir">Kasir</option>
-                  <option value="admin">Admin</option>
-                  <option value="pemilik">Pemilik</option>
-                </select>
+          {/* Sisi Kanan: Kartu Form Login */}
+          <div className="maju-login-card">
+            {/* Header / Logo */}
+            <div className="maju-card-header">
+              <div className="maju-logo-box">
+                <img src={loginAppIcon} alt="Maju POS Icon" className="maju-app-logo" />
               </div>
+              <h1 className="maju-card-title">{isRegisterMode ? 'Buat Akun' : 'Maju POS'}</h1>
+              <p className="maju-card-tagline">
+                {isRegisterMode ? 'Daftar untuk mengakses kasir atau manajemen toko.' : 'Bersama, Membangun Bisnis yang Lebih Baik.'}
+              </p>
+              <div className="maju-card-divider" />
+            </div>
 
-              <div className="form-group">
-                <label className="form-label">Email</label>
-                <input
-                  type="email"
-                  className="form-input"
-                  placeholder="Contoh: nama@toko.com"
-                  value={registerEmail}
-                  onChange={(e) => setRegisterEmail(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Username</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  placeholder="Contoh: rafihaf"
-                  value={registerUsername}
-                  onChange={(e) => setRegisterUsername(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Password</label>
-                <input
-                  type="password"
-                  className="form-input"
-                  placeholder="Minimal 6 karakter"
-                  value={registerPassword}
-                  onChange={(e) => setRegisterPassword(e.target.value)}
-                  required
-                />
-              </div>
-
-              {registerError && <div className="login-error">{registerError}</div>}
-              {registerSuccess && <div className="register-success">{registerSuccess}</div>}
-
-              <button type="submit" className="btn-primary" style={{ width: '100%' }}>
-                Daftar
-              </button>
-            </form>
-          ) : (
-            <form className="login-form" onSubmit={handleLogin}>
-              <div className="form-group">
-                <label className="form-label">Peran</label>
-                <select
-                  className="form-input"
-                  value={activeRole}
-                  onChange={(e) => setActiveRole(e.target.value)}
-                >
-                  <option value="kasir">Kasir</option>
-                  <option value="admin">Admin</option>
-                  <option value="pemilik">Pemilik Toko</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Email</label>
-                <input
-                  type="email"
-                  className="form-input"
-                  placeholder="owner@toko.com, admin@toko.com, atau kasir@toko.com"
-                  value={loginEmail}
-                  onChange={(e) => setLoginEmail(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Password</label>
-                <input
-                  type="password"
-                  className="form-input"
-                  placeholder="owner123 atau kasir123"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  required
-                />
-              </div>
-
-              {loginError && <div className="login-error">{loginError}</div>}
-              {registerSuccess && <div className="register-success">{registerSuccess}</div>}
-
-              <button type="submit" className="btn-primary" style={{ width: '100%' }}>
-                Masuk
-              </button>
-            </form>
-          )}
-
-          <div className="login-help">
             {isRegisterMode ? (
-              <p>
-                Sudah punya akun?{' '}
-                <button
-                  type="button"
-                  className="form-toggle-link"
-                  onClick={() => {
-                    setIsRegisterMode(false);
-                    setRegisterError('');
-                    setRegisterSuccess('');
-                  }}
-                >
-                  Masuk di sini
+              <form className="maju-form" onSubmit={handleRegisterSubmit}>
+                <div className="maju-field-group">
+                  <label className="maju-field-label">
+                    <User size={15} className="maju-label-icon" /> Peran
+                  </label>
+                  <select
+                    className="maju-input maju-select"
+                    value={registerRole}
+                    onChange={(e) => setRegisterRole(e.target.value)}
+                  >
+                    <option value="kasir">Kasir</option>
+                    <option value="admin">Admin</option>
+                    <option value="pemilik">Pemilik</option>
+                  </select>
+                </div>
+
+                <div className="maju-field-group">
+                  <label className="maju-field-label">
+                    <User size={15} className="maju-label-icon" /> Username
+                  </label>
+                  <input
+                    type="text"
+                    className="maju-input"
+                    placeholder="Contoh: kiplingikbar"
+                    value={registerUsername}
+                    onChange={(e) => setRegisterUsername(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="maju-field-group">
+                  <label className="maju-field-label">
+                    <Mail size={15} className="maju-label-icon" /> Email
+                  </label>
+                  <input
+                    type="email"
+                    className="maju-input"
+                    placeholder="kiplingikbar@gmail.com"
+                    value={registerEmail}
+                    onChange={(e) => setRegisterEmail(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div className="maju-field-group">
+                  <label className="maju-field-label">
+                    <Lock size={15} className="maju-label-icon" /> Password
+                  </label>
+                  <div className="maju-password-wrapper">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      className="maju-input maju-input-password"
+                      placeholder="Minimal 6 karakter"
+                      value={registerPassword}
+                      onChange={(e) => setRegisterPassword(e.target.value)}
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="maju-toggle-password-btn"
+                      onClick={() => setShowPassword(!showPassword)}
+                      tabIndex={-1}
+                      title={showPassword ? 'Sembunyikan password' : 'Lihat password'}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                {registerError && <div className="login-error">{registerError}</div>}
+                {registerSuccess && <div className="register-success">{registerSuccess}</div>}
+
+                <button type="submit" className="maju-btn-submit">
+                  <UserPlus size={18} /> Buat Akun & Masuk
                 </button>
-              </p>
+
+                <div className="maju-switch-mode">
+                  Sudah punya akun?{' '}
+                  <button
+                    type="button"
+                    className="maju-switch-link"
+                    onClick={() => {
+                      setIsRegisterMode(false);
+                      setRegisterError('');
+                    }}
+                  >
+                    Masuk di sini
+                  </button>
+                </div>
+              </form>
             ) : (
-              <p>
-                Belum punya akun?{' '}
-                <button
-                  type="button"
-                  className="form-toggle-link"
-                  onClick={() => {
-                    setIsRegisterMode(true);
-                    setLoginError('');
-                  }}
-                >
-                  Daftar sekarang
+              <form className="maju-form" onSubmit={handleLogin}>
+                {/* Field Peran */}
+                <div className="maju-field-group">
+                  <label className="maju-field-label">
+                    <User size={15} className="maju-label-icon" /> Peran
+                  </label>
+                  <select
+                    className="maju-input maju-select"
+                    value={activeRole}
+                    onChange={(e) => setActiveRole(e.target.value)}
+                  >
+                    <option value="kasir">Kasir</option>
+                    <option value="admin">Admin</option>
+                    <option value="pemilik">Pemilik</option>
+                  </select>
+                </div>
+
+                {/* Field Email */}
+                <div className="maju-field-group">
+                  <label className="maju-field-label">
+                    <Mail size={15} className="maju-label-icon" /> Email
+                  </label>
+                  <input
+                    type="email"
+                    className="maju-input"
+                    placeholder="kiplingikbar@gmail.com"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    required
+                  />
+                </div>
+
+                {/* Field Password */}
+                <div className="maju-field-group">
+                  <label className="maju-field-label">
+                    <Lock size={15} className="maju-label-icon" /> Password
+                  </label>
+                  <div className="maju-password-wrapper">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      className="maju-input maju-input-password"
+                      placeholder="•••••••"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="maju-toggle-password-btn"
+                      onClick={() => setShowPassword(!showPassword)}
+                      tabIndex={-1}
+                      title={showPassword ? 'Sembunyikan password' : 'Lihat password'}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                {loginError && <div className="login-error">{loginError}</div>}
+                {registerSuccess && <div className="register-success">{registerSuccess}</div>}
+
+                {/* Tombol Masuk */}
+                <button type="submit" className="maju-btn-submit">
+                  <LogIn size={18} /> Masuk
                 </button>
-              </p>
-            )}
-            <p>Registrasi menggunakan Email, Peran, Username, dan Password.</p>
-            {!isRegisterMode && (
-              <>
-                <p>Contoh akun:</p>
-                <p><strong>Pemilik</strong>: owner@toko.com / owner123</p>
-                <p><strong>Admin</strong>: admin@toko.com / admin123</p>
-                <p><strong>Kasir</strong>: kasir@toko.com / kasir123</p>
-              </>
+
+                <div className="maju-switch-mode">
+                  Belum punya akun?{' '}
+                  <button
+                    type="button"
+                    className="maju-switch-link"
+                    onClick={() => {
+                      setIsRegisterMode(true);
+                      setLoginError('');
+                      setRegisterSuccess('');
+                    }}
+                  >
+                    Daftar Sekarang
+                  </button>
+                </div>
+              </form>
             )}
           </div>
         </div>
@@ -554,7 +789,7 @@ function App() {
   return (
     <div className="app-container">
       {/* Sidebar Navigation */}
-      <Sidebar role={activeRole} />
+      <Sidebar role={activeRole} onLogout={handleLogout} />
 
       {/* Main Content Area */}
       <main className="main-content">
@@ -582,7 +817,7 @@ function App() {
         </div>
 
         {/* VIEW: DASHBOARD / INVENTORY */}
-        {activeTab === 'dashboard' && (
+        {(activeTab === 'inventory' || activeTab === 'dashboard') && (
           <>
             {/* Top Navigation */}
             <div className="top-nav">
@@ -678,12 +913,13 @@ function App() {
                     <th>Harga Satuan</th>
                     <th>Stok</th>
                     <th>Status</th>
+                    <th style={{ textAlign: 'center' }}>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredProducts.length === 0 ? (
                     <tr>
-                      <td colSpan="5" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
+                      <td colSpan="6" style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
                         Tidak ada barang ditemukan untuk pencarian "{searchQuery}"
                       </td>
                     </tr>
@@ -712,6 +948,58 @@ function App() {
                             <span className={`badge ${isLowStock ? 'danger' : 'success'}`}>
                               {isLowStock ? 'Menipis' : 'Aman'}
                             </span>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <div className="product-action-wrapper">
+                              <button 
+                                type="button"
+                                className="btn-pill-edit"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveActionMenu(activeActionMenu === p.id ? null : p.id);
+                                }}
+                              >
+                                Edit <ChevronDown size={13} />
+                              </button>
+
+                              {activeActionMenu === p.id && (
+                                <div className="product-action-dropdown">
+                                  <button 
+                                    type="button"
+                                    className="dropdown-action-item"
+                                    onClick={() => {
+                                      setActiveActionMenu(null);
+                                      openAdjustStock(p);
+                                    }}
+                                  >
+                                    <Layers size={14} style={{ color: '#2563eb' }} />
+                                    <span>Atur Stok</span>
+                                  </button>
+                                  <button 
+                                    type="button"
+                                    className="dropdown-action-item"
+                                    onClick={() => {
+                                      setActiveActionMenu(null);
+                                      openEditProduct(p);
+                                    }}
+                                  >
+                                    <Edit3 size={14} style={{ color: '#d97706' }} />
+                                    <span>Edit Produk</span>
+                                  </button>
+                                  <button 
+                                    type="button"
+                                    className="dropdown-action-item danger"
+                                    onClick={() => {
+                                      setActiveActionMenu(null);
+                                      handleDeleteProduct(p);
+                                    }}
+                                  >
+                                    <Trash2 size={14} style={{ color: '#dc2626' }} />
+                                    <span>Hapus Produk</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -879,7 +1167,7 @@ function App() {
                     </div>
                   )}
                   <div className="summary-row">
-                    <span>PPN (11%)</span>
+                    <span>PPN (1%)</span>
                     <span>{formatRupiah(cartPpn)}</span>
                   </div>
                   <div className="summary-row total">
@@ -891,7 +1179,12 @@ function App() {
                 <button
                   className="btn-checkout"
                   disabled={cart.length === 0}
-                  onClick={checkoutCart}
+                  onClick={() => {
+                    if (cart.length === 0) return;
+                    setPaymentMethod('Tunai');
+                    setCashGiven(String(cartTotal));
+                    setIsPaymentModalOpen(true);
+                  }}
                 >
                   Proses Transaksi / Bayar
                 </button>
@@ -962,76 +1255,28 @@ function App() {
           </>
         )}
 
-        {/* VIEW: LAPORAN ASET TOKO */}
-        {activeTab === 'reports' && (
-          <>
-            {/* Page Title */}
-            <div className="page-title-section">
-              <h1 className="page-title">Laporan Keuangan & Estimasi Aset</h1>
-              <p className="page-subtitle">Period: Juni 2026</p>
-            </div>
+        {/* VIEW: REKAP PENJUALAN (KASIR) */}
+        {activeTab === 'sales_recap' && (
+          <SalesRecapView formatRupiah={formatRupiah} />
+        )}
 
-            {/* Dark Theme Dashboard Container */}
-            <div className="report-dark-bg">
-              
-              <div className="report-header-section">
-                <div className="report-title-block">
-                  <h2 className="report-title">
-                    <Sparkles size={20} style={{ color: '#38bdf8' }} /> Estimasi Nilai Aset & Penjualan
-                  </h2>
-                  <p className="report-subtitle">Laporan otomatis berdasarkan inventaris dan transaksi terbaru</p>
-                </div>
-                <div className="report-period">
-                  Period: 1 Jan - 3 Jun 2026
-                </div>
-              </div>
+        {/* VIEW: CASHFLOW BISNIS (ADMIN / PEMILIK) */}
+        {activeTab === 'cashflow' && (
+          <CashflowView formatRupiah={formatRupiah} />
+        )}
 
-              <div className="report-cards-container">
-                {/* Electronics Asset Card */}
-                <div className="report-valuation-card">
-                  <span className="report-card-label">Aset Kelas Elektronik</span>
-                  <span className="report-card-value elektronik">{formatRupiah(electronicsAsset)}</span>
-                  <div className="report-card-progress">
-                    <div 
-                      className="report-card-bar elektronik" 
-                      style={{ width: `${elecPct}%` }}
-                    ></div>
-                  </div>
-                  <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-                    Kontribusi Porsi: {elecPct.toFixed(1)}% dari Total Aset Toko
-                  </span>
-                </div>
+        {/* VIEW: LAPORAN KEUANGAN (ADMIN / PEMILIK) */}
+        {(activeTab === 'financial_reports' || activeTab === 'reports') && (
+          <FinancialReportsView formatRupiah={formatRupiah} />
+        )}
 
-                {/* Food Asset Card */}
-                <div className="report-valuation-card">
-                  <span className="report-card-label">Aset Kelas Makanan</span>
-                  <span className="report-card-value makanan">{formatRupiah(foodAsset)}</span>
-                  <div className="report-card-progress">
-                    <div 
-                      className="report-card-bar makanan" 
-                      style={{ width: `${foodPct}%` }}
-                    ></div>
-                  </div>
-                  <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-                    Kontribusi Porsi: {foodPct.toFixed(1)}% dari Total Aset Toko
-                  </span>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="report-action-buttons">
-                <button className="btn-report-action pdf" onClick={handleExportPDF}>
-                  <Download size={18} />
-                  <span>Unduh PDF Laporan</span>
-                </button>
-                <button className="btn-report-action csv" onClick={handleExportCSV}>
-                  <FileSpreadsheet size={18} />
-                  <span>Ekspor CSV Data</span>
-                </button>
-              </div>
-
-            </div>
-          </>
+        {/* VIEW: MANAJEMEN AKSES (ADMIN / PEMILIK) */}
+        {activeTab === 'team_access' && (
+          <TeamAccessView 
+            registeredUsers={registeredUsers} 
+            onAddUser={handleAddUser} 
+            onDeleteUser={handleDeleteUser} 
+          />
         )}
 
       </main>
@@ -1107,6 +1352,258 @@ function App() {
         </div>
       )}
 
+      {/* Modal Konfirmasi & Pembayaran Transaksi Kasir */}
+      {isPaymentModalOpen && (
+        <div className="modal-backdrop" onClick={() => setIsPaymentModalOpen(false)}>
+          <div className="payment-modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header" style={{ padding: '18px 24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ background: '#dbeafe', color: '#2563eb', padding: '8px', borderRadius: '10px' }}>
+                  <CreditCard size={20} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '18px', fontWeight: 800, margin: 0 }}>Konfirmasi & Pembayaran Kasir</h3>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                    Periksa rincian item belanja dan tentukan metode pembayaran
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => setIsPaymentModalOpen(false)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              
+              {/* Bagian 1: Apa Saja yang Dibeli (Daftar Produk) */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label className="form-label" style={{ margin: 0, fontWeight: 700 }}>
+                    Item Belanja ({cart.reduce((s, it) => s + it.quantity, 0)} Barang)
+                  </label>
+                  {selectedMember && (
+                    <span className="badge badge-info" style={{ fontSize: '11px' }}>
+                      Member: {selectedMember.name} (Diskon 5%)
+                    </span>
+                  )}
+                </div>
+
+                <div className="payment-items-list">
+                  {cartDetails.map((item) => (
+                    <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
+                      <div>
+                        <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{item.name}</div>
+                        <div style={{ fontSize: '11.5px', color: 'var(--text-muted)' }}>
+                          {item.quantity} x {formatRupiah(item.price)}
+                        </div>
+                      </div>
+                      <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>
+                        {formatRupiah(item.total)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Bagian 2: Ringkasan Total Harga */}
+              <div style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '14px', padding: '14px 16px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12.5px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Subtotal Produk</span>
+                    <span>{formatRupiah(cartSubtotal)}</span>
+                  </div>
+                  {cartDiscount > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#dc2626' }}>
+                      <span>Diskon Member (5%)</span>
+                      <span style={{ fontWeight: 700 }}>-{formatRupiah(cartDiscount)}</span>
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>PPN (1%)</span>
+                    <span>{formatRupiah(cartPpn)}</span>
+                  </div>
+                  <div style={{ height: '1px', background: 'var(--border-color)', margin: '4px 0' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '14px', fontWeight: 800 }}>TOTAL HARGA</span>
+                    <span style={{ fontSize: '20px', fontWeight: 900, color: '#16a34a' }}>
+                      {formatRupiah(cartTotal)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bagian 3: Metode Pembayaran */}
+              <div>
+                <label className="form-label" style={{ fontWeight: 700, marginBottom: '8px', display: 'block' }}>
+                  Pilih Metode Pembayaran *
+                </label>
+                <div className="payment-method-grid">
+                  <button
+                    type="button"
+                    className={`payment-method-card ${paymentMethod === 'Tunai' ? 'active' : ''}`}
+                    onClick={() => {
+                      setPaymentMethod('Tunai');
+                      if (!cashGiven) setCashGiven(String(cartTotal));
+                    }}
+                  >
+                    <Banknote size={18} style={{ color: paymentMethod === 'Tunai' ? '#2563eb' : 'var(--text-muted)' }} />
+                    <span>💵 Tunai (Cash)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`payment-method-card ${paymentMethod === 'QRIS' ? 'active' : ''}`}
+                    onClick={() => setPaymentMethod('QRIS')}
+                  >
+                    <QrCode size={18} style={{ color: paymentMethod === 'QRIS' ? '#2563eb' : 'var(--text-muted)' }} />
+                    <span>📱 QRIS Dinamis</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`payment-method-card ${paymentMethod === 'Debit' ? 'active' : ''}`}
+                    onClick={() => setPaymentMethod('Debit')}
+                  >
+                    <CreditCard size={18} style={{ color: paymentMethod === 'Debit' ? '#2563eb' : 'var(--text-muted)' }} />
+                    <span>💳 Kartu Debit/EDC</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`payment-method-card ${paymentMethod === 'Transfer Bank' ? 'active' : ''}`}
+                    onClick={() => setPaymentMethod('Transfer Bank')}
+                  >
+                    <Building2 size={18} style={{ color: paymentMethod === 'Transfer Bank' ? '#2563eb' : 'var(--text-muted)' }} />
+                    <span>🏦 Transfer Bank</span>
+                  </button>
+                </div>
+
+                {/* Detail Input Berdasarkan Metode */}
+                <div style={{ marginTop: '12px' }}>
+                  {paymentMethod === 'Tunai' && (
+                    <div style={{ background: 'var(--bg-hover)', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                      <div className="form-group">
+                        <label className="form-label" style={{ fontWeight: 700 }}>
+                          Nominal Uang Diterima (Rp)
+                        </label>
+                        <input
+                          type="number"
+                          className="form-input"
+                          placeholder="Masukkan jumlah uang pelanggan..."
+                          value={cashGiven}
+                          onChange={(e) => setCashGiven(e.target.value)}
+                          min={0}
+                          style={{ fontSize: '16px', fontWeight: 700 }}
+                        />
+                      </div>
+
+                      {/* Shortcut Pilihan Nominal */}
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{ padding: '4px 10px', fontSize: '11.5px', borderRadius: '16px' }}
+                          onClick={() => setCashGiven(String(cartTotal))}
+                        >
+                          Uang Pas ({formatRupiah(cartTotal)})
+                        </button>
+                        {[50000, 100000, 200000, 500000].map((amt) => {
+                          if (amt < cartTotal && amt !== 50000) return null;
+                          return (
+                            <button
+                              key={amt}
+                              type="button"
+                              className="btn-secondary"
+                              style={{ padding: '4px 10px', fontSize: '11.5px', borderRadius: '16px' }}
+                              onClick={() => setCashGiven(String(amt))}
+                            >
+                              Rp {amt.toLocaleString('id-ID')}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Kalkulasi Kembalian */}
+                      <div style={{ marginTop: '12px', padding: '10px 14px', borderRadius: '10px', background: Number(cashGiven) >= cartTotal ? '#dcfce7' : '#fee2e2', color: Number(cashGiven) >= cartTotal ? '#166534' : '#991b1b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 700 }}>
+                          {Number(cashGiven) >= cartTotal ? 'Kembalian:' : 'Uang Kurang:'}
+                        </span>
+                        <span style={{ fontSize: '16px', fontWeight: 800 }}>
+                          {Number(cashGiven) >= cartTotal 
+                            ? formatRupiah(Math.max(0, (Number(cashGiven) || 0) - cartTotal))
+                            : formatRupiah(cartTotal - (Number(cashGiven) || 0))}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {paymentMethod === 'QRIS' && (
+                    <div style={{ background: '#eff6ff', padding: '16px', borderRadius: '12px', border: '1px solid #bfdbfe', textAlign: 'center' }}>
+                      <div style={{ display: 'inline-flex', padding: '12px', background: '#ffffff', borderRadius: '12px', boxShadow: '0 4px 10px rgba(0,0,0,0.06)', marginBottom: '8px' }}>
+                        <QrCode size={56} style={{ color: '#1e40af' }} />
+                      </div>
+                      <div style={{ fontSize: '13px', fontWeight: 700, color: '#1e3a8a' }}>
+                        Scan QRIS Statis / Dinamis Kasir
+                      </div>
+                      <div style={{ fontSize: '11.5px', color: '#3b82f6', marginTop: '2px' }}>
+                        Mendukung GoPay, OVO, ShopeePay, Dana, LinkAja, dan BCA Mobile
+                      </div>
+                    </div>
+                  )}
+
+                  {paymentMethod === 'Debit' && (
+                    <div style={{ background: 'var(--bg-hover)', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                        Gesek atau masukkan kartu ke mesin EDC kasir, lalu klik Selesaikan Pembayaran setelah struk EDC keluar.
+                      </div>
+                    </div>
+                  )}
+
+                  {paymentMethod === 'Transfer Bank' && (
+                    <div style={{ background: 'var(--bg-hover)', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                      <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                        Pastikan bukti transfer telah dicek dan mutasi saldo masuk sebelum menyelesaikan transaksi.
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+            </div>
+
+            {/* Modal Footer */}
+            <div className="modal-footer" style={{ padding: '16px 24px', display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid var(--border-color)' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setIsPaymentModalOpen(false)}
+              >
+                Batal / Kembali
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={paymentMethod === 'Tunai' && Number(cashGiven) < cartTotal}
+                onClick={() => {
+                  const cashNum = Number(cashGiven) || cartTotal;
+                  const changeAmount = paymentMethod === 'Tunai' ? Math.max(0, cashNum - cartTotal) : 0;
+                  checkoutCart({
+                    paymentMethod,
+                    cashReceived: paymentMethod === 'Tunai' ? cashNum : cartTotal,
+                    change: changeAmount
+                  });
+                  setIsPaymentModalOpen(false);
+                }}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <CheckCircle2 size={16} />
+                Selesaikan Pembayaran
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Checkout Receipt Modal Popup */}
       {currentReceipt && (
         <div className="modal-overlay" onClick={() => setCurrentReceipt(null)}>
@@ -1165,7 +1662,7 @@ function App() {
                     </div>
                   )}
                   <div className="receipt-row">
-                    <span>PPN (11%)</span>
+                    <span>PPN (1%)</span>
                     <span>{formatRupiah(currentReceipt.ppn)}</span>
                   </div>
                   <div className="receipt-divider"></div>
@@ -1173,6 +1670,23 @@ function App() {
                     <span>TOTAL BAYAR</span>
                     <span>{formatRupiah(currentReceipt.total)}</span>
                   </div>
+                  <div className="receipt-divider"></div>
+                  <div className="receipt-row">
+                    <span>Metode Bayar</span>
+                    <span style={{ fontWeight: 600 }}>{currentReceipt.paymentMethod || 'Tunai'}</span>
+                  </div>
+                  {(currentReceipt.paymentMethod === 'Tunai' || !currentReceipt.paymentMethod) && (
+                    <>
+                      <div className="receipt-row">
+                        <span>Tunai Diterima</span>
+                        <span>{formatRupiah(currentReceipt.cashReceived || currentReceipt.total)}</span>
+                      </div>
+                      <div className="receipt-row">
+                        <span>Kembalian</span>
+                        <span style={{ fontWeight: 600, color: '#16a34a' }}>{formatRupiah(currentReceipt.change || 0)}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div className="receipt-divider"></div>
@@ -1200,6 +1714,169 @@ function App() {
                 Selesai
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Atur Stok Produk */}
+      {adjustStockModalItem && (
+        <div className="modal-backdrop" onClick={() => setAdjustStockModalItem(null)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h3 style={{ fontSize: '17px', fontWeight: 700 }}>Atur Stok Barang</h3>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                  {adjustStockModalItem.name} ({adjustStockModalItem.id})
+                </div>
+              </div>
+              <button onClick={() => setAdjustStockModalItem(null)}><X size={20} /></button>
+            </div>
+
+            <form onSubmit={handleSaveAdjustStock} className="modal-form">
+              <div style={{ padding: '12px 14px', background: 'var(--bg-hover)', borderRadius: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Stok Saat Ini:</span>
+                <strong style={{ fontSize: '16px', color: 'var(--primary)' }}>{adjustStockModalItem.stock} Unit</strong>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Aksi Perubahan Stok</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+                  <button
+                    type="button"
+                    className={`subclass-btn ${adjustMode === 'add' ? 'active makanan' : ''}`}
+                    onClick={() => setAdjustMode('add')}
+                    style={{ padding: '8px', fontSize: '12px' }}
+                  >
+                    + Tambah
+                  </button>
+                  <button
+                    type="button"
+                    className={`subclass-btn ${adjustMode === 'subtract' ? 'active elektronik' : ''}`}
+                    onClick={() => setAdjustMode('subtract')}
+                    style={{ padding: '8px', fontSize: '12px' }}
+                  >
+                    - Kurang
+                  </button>
+                  <button
+                    type="button"
+                    className={`subclass-btn ${adjustMode === 'set' ? 'active' : ''}`}
+                    onClick={() => setAdjustMode('set')}
+                    style={{ padding: '8px', fontSize: '12px' }}
+                  >
+                    Set Baru
+                  </button>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">
+                  {adjustMode === 'add' ? 'Jumlah Tambahan Unit' : adjustMode === 'subtract' ? 'Jumlah Pengurangan Unit' : 'Jumlah Stok Fisik Riil'}
+                </label>
+                <input
+                  type="number"
+                  className="form-input"
+                  min="0"
+                  placeholder="Contoh: 10"
+                  value={adjustQty}
+                  onChange={(e) => setAdjustQty(e.target.value)}
+                  required
+                />
+              </div>
+
+              {/* Preview Kalkulasi Stok Baru */}
+              <div style={{ padding: '10px 14px', background: 'rgba(37, 99, 235, 0.08)', borderRadius: '10px', fontSize: '13px' }}>
+                Kalkulasi Stok Baru: {' '}
+                <strong style={{ color: '#2563eb' }}>
+                  {adjustMode === 'add' 
+                    ? `${adjustStockModalItem.stock} + ${Number(adjustQty) || 0} = ${adjustStockModalItem.stock + (Number(adjustQty) || 0)} Unit`
+                    : adjustMode === 'subtract'
+                      ? `${adjustStockModalItem.stock} - ${Number(adjustQty) || 0} = ${Math.max(0, adjustStockModalItem.stock - (Number(adjustQty) || 0))} Unit`
+                      : `${Number(adjustQty) || 0} Unit`}
+                </strong>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+                <button type="button" className="btn-secondary" onClick={() => setAdjustStockModalItem(null)}>
+                  Batal
+                </button>
+                <button type="submit" className="btn-primary">
+                  Simpan Perubahan Stok
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Edit Produk */}
+      {editProductModalItem && (
+        <div className="modal-backdrop" onClick={() => setEditProductModalItem(null)}>
+          <div className="modal-box" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h3 style={{ fontSize: '17px', fontWeight: 700 }}>Edit Informasi Produk</h3>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                  Kode Barang: <code>{editProductModalItem.id}</code>
+                </div>
+              </div>
+              <button onClick={() => setEditProductModalItem(null)}><X size={20} /></button>
+            </div>
+
+            <form onSubmit={handleSaveEditProduct} className="modal-form">
+              <div className="form-group">
+                <label className="form-label">Nama Produk *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Subclass / Kategori Kelas</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Ketik nama subclass (Elektronik, Makanan, Minuman, dll)"
+                  value={editCategory}
+                  onChange={(e) => setEditCategory(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Harga Satuan (Rp) *</label>
+                <input
+                  type="number"
+                  className="form-input"
+                  min="0"
+                  value={editPrice}
+                  onChange={(e) => setEditPrice(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Keterangan / Garansi / Expired</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={editDetails}
+                  onChange={(e) => setEditDetails(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '12px' }}>
+                <button type="button" className="btn-secondary" onClick={() => setEditProductModalItem(null)}>
+                  Batal
+                </button>
+                <button type="submit" className="btn-primary">
+                  Simpan Perubahan Produk
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
