@@ -1,13 +1,33 @@
 import os
 from pathlib import Path
 
+
+def env_bool(name, default=False):
+    """Baca environment variable boolean (1/true/yes/on)."""
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+def env_list(name, default):
+    """Baca environment variable berupa daftar dipisahkan koma."""
+    value = os.getenv(name)
+    if value is None or not value.strip():
+        return default
+    return [item.strip() for item in value.split(',') if item.strip()]
+
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-pos-cloud-computing-task9-secret-key'
+SECRET_KEY = os.getenv(
+    'SECRET_KEY',
+    'django-insecure-pos-cloud-computing-task9-secret-key',
+)
 
-DEBUG = True
+DEBUG = env_bool('DEBUG', True)
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = env_list('ALLOWED_HOSTS', ['*'])
 
 INSTALLED_APPS = [
     'django.contrib.staticfiles',
@@ -51,8 +71,16 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
-# CORS Configuration agar frontend React dapat berkomunikasi langsung
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS Configuration agar frontend React dapat berkomunikasi langsung.
+# Development: izinkan semua origin agar tidak menghambat anggota lain.
+# Produksi: DEBUG=False + CORS_ALLOWED_ORIGINS ke domain CloudFront.
+CORS_ALLOW_ALL_ORIGINS = env_bool('CORS_ALLOW_ALL_ORIGINS', DEBUG)
+CORS_ALLOWED_ORIGINS = env_list('CORS_ALLOWED_ORIGINS', [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:8080',
+    'http://127.0.0.1:8080',
+])
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_METHODS = [
     'DELETE',

@@ -28,3 +28,20 @@ __pycache__/
 *.py[cod]
 *.class
 *.sqlite3
+.venv/
+venv/
+
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+crash.log
+
+# Local lab
+.local/
