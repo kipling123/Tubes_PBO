@@ -10,12 +10,23 @@ Serta Entitas Pendukung:
 4. User (Akun Kasir & Pemilik/Admin)
 """
 
-import os
+import copy
+import functools
 import json
+import os
+import tempfile
+import threading
 from pathlib import Path
 from datetime import datetime
 
-DATA_FILE = Path(__file__).resolve().parent.parent / "data_store.json"
+DATA_FILE = Path(
+    os.environ.get(
+        "POS_DATA_FILE",
+        str(Path(__file__).resolve().parent.parent / "data_store.json"),
+    )
+).expanduser().resolve()
+_STORE_THREAD_LOCK = threading.RLock()
+_STORE_LOCK_STATE = threading.local()
 
 # ==========================================
 # DEFAULT DATA (Hardcoded JSON / Dict Structure)
@@ -138,36 +149,129 @@ TRANSACTIONS = [dict(t) for t in DEFAULT_TRANSACTIONS]
 USERS = [dict(u) for u in DEFAULT_USERS]
 
 
+class _StorageLock:
+    def __enter__(self):
+        _STORE_THREAD_LOCK.acquire()
+        self.nested = getattr(_STORE_LOCK_STATE, "depth", 0) > 0
+        if self.nested:
+            _STORE_LOCK_STATE.depth += 1
+            return self
+
+        try:
+            DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
+            self.lock_file = DATA_FILE.with_name(f"{DATA_FILE.name}.lock").open("a+b")
+            if os.name == "nt":
+                import msvcrt
+
+                if os.fstat(self.lock_file.fileno()).st_size == 0:
+                    self.lock_file.write(b"\0")
+                    self.lock_file.flush()
+                self.lock_file.seek(0)
+                msvcrt.locking(self.lock_file.fileno(), msvcrt.LK_LOCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(self.lock_file.fileno(), fcntl.LOCK_EX)
+        except Exception:
+            if hasattr(self, "lock_file"):
+                self.lock_file.close()
+            _STORE_THREAD_LOCK.release()
+            raise
+        _STORE_LOCK_STATE.depth = 1
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        if self.nested:
+            _STORE_LOCK_STATE.depth -= 1
+        else:
+            try:
+                try:
+                    if os.name == "nt":
+                        import msvcrt
+
+                        self.lock_file.seek(0)
+                        msvcrt.locking(self.lock_file.fileno(), msvcrt.LK_UNLCK, 1)
+                    else:
+                        import fcntl
+
+                        fcntl.flock(self.lock_file.fileno(), fcntl.LOCK_UN)
+                finally:
+                    self.lock_file.close()
+                    _STORE_LOCK_STATE.depth = 0
+            finally:
+                _STORE_THREAD_LOCK.release()
+
+
+def _synchronized_store(function):
+    @functools.wraps(function)
+    def wrapped(*args, **kwargs):
+        if getattr(_STORE_LOCK_STATE, "depth", 0) > 0:
+            return function(*args, **kwargs)
+
+        with _StorageLock():
+            _load_from_disk_unlocked()
+            return copy.deepcopy(function(*args, **kwargs))
+
+    return wrapped
+
+
 def save_to_disk():
-    """Menyimpan data dict ke file JSON lokal agar data tetap tersimpan saat reload."""
-    try:
-        data = {
-            "PRODUCTS": PRODUCTS,
-            "MEMBERS": MEMBERS,
-            "TRANSACTIONS": TRANSACTIONS,
-            "USERS": USERS,
+    """Write a complete JSON snapshot using an atomic replacement."""
+    data = {
+        "PRODUCTS": PRODUCTS,
+        "MEMBERS": MEMBERS,
+        "TRANSACTIONS": TRANSACTIONS,
+        "USERS": USERS,
+    }
+    with _StorageLock():
+        file_descriptor, temporary_path = tempfile.mkstemp(
+            prefix=f".{DATA_FILE.name}.",
+            suffix=".tmp",
+            dir=DATA_FILE.parent,
+        )
+        try:
+            with os.fdopen(file_descriptor, "w", encoding="utf-8") as data_file:
+                json.dump(data, data_file, indent=2, ensure_ascii=False)
+                data_file.flush()
+                os.fsync(data_file.fileno())
+            os.replace(temporary_path, DATA_FILE)
+        except Exception:
+            if os.path.exists(temporary_path):
+                os.unlink(temporary_path)
+            raise
+
+
+def _load_from_disk_unlocked():
+    global PRODUCTS, MEMBERS, TRANSACTIONS, USERS
+    if DATA_FILE.exists():
+        with DATA_FILE.open("r", encoding="utf-8") as data_file:
+            data = json.load(data_file)
+        if not isinstance(data, dict):
+            raise ValueError(f"Data store JSON must contain an object: {DATA_FILE}")
+        defaults = {
+            "PRODUCTS": DEFAULT_PRODUCTS,
+            "MEMBERS": DEFAULT_MEMBERS,
+            "TRANSACTIONS": DEFAULT_TRANSACTIONS,
+            "USERS": DEFAULT_USERS,
         }
-        with open(DATA_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-    except Exception as e:
-        print("[data_store] Error saving to disk:", e)
+        loaded = {}
+        for key, default in defaults.items():
+            value = data.get(key, copy.deepcopy(default))
+            if not isinstance(value, list):
+                raise ValueError(f"Data store field '{key}' must be a list: {DATA_FILE}")
+            loaded[key] = value
+        PRODUCTS = loaded["PRODUCTS"]
+        MEMBERS = loaded["MEMBERS"]
+        TRANSACTIONS = loaded["TRANSACTIONS"]
+        USERS = loaded["USERS"]
+    else:
+        save_to_disk()
 
 
 def load_from_disk():
-    """Memuat data JSON dari disk jika file tersedia."""
-    global PRODUCTS, MEMBERS, TRANSACTIONS, USERS
-    if DATA_FILE.exists():
-        try:
-            with open(DATA_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                PRODUCTS = data.get("PRODUCTS", PRODUCTS)
-                MEMBERS = data.get("MEMBERS", MEMBERS)
-                TRANSACTIONS = data.get("TRANSACTIONS", TRANSACTIONS)
-                USERS = data.get("USERS", USERS)
-        except Exception as e:
-            print("[data_store] Error loading from disk:", e)
-    else:
-        save_to_disk()
+    """Load the latest shared JSON state while holding the cross-process lock."""
+    with _StorageLock():
+        _load_from_disk_unlocked()
 
 
 # Muat data persisten saat aplikasi pertama dijalankan
@@ -186,15 +290,18 @@ def determine_member_level(points):
 # ==========================================
 # CRUD ENTITAS PRODUK (Product)
 # ==========================================
+@_synchronized_store
 def get_products():
     return PRODUCTS
 
+@_synchronized_store
 def get_product_by_id(product_id):
     for p in PRODUCTS:
         if str(p["id"]).lower() == str(product_id).lower():
             return p
     return None
 
+@_synchronized_store
 def create_product(data):
     # Auto-generate ID: BRG-xxx
     next_num = len(PRODUCTS) + 1
@@ -211,6 +318,7 @@ def create_product(data):
     save_to_disk()
     return new_product
 
+@_synchronized_store
 def update_product(product_id, data):
     product = get_product_by_id(product_id)
     if not product:
@@ -229,6 +337,7 @@ def update_product(product_id, data):
     save_to_disk()
     return product
 
+@_synchronized_store
 def delete_product(product_id):
     global PRODUCTS
     product = get_product_by_id(product_id)
@@ -242,15 +351,18 @@ def delete_product(product_id):
 # ==========================================
 # CRUD ENTITAS MEMBER (Member)
 # ==========================================
+@_synchronized_store
 def get_members():
     return MEMBERS
 
+@_synchronized_store
 def get_member_by_id(member_id):
     for m in MEMBERS:
         if str(m["id"]).lower() == str(member_id).lower():
             return m
     return None
 
+@_synchronized_store
 def create_member(data):
     next_num = len(MEMBERS) + 1
     new_id = f"MBR-{str(next_num).zfill(3)}"
@@ -267,6 +379,7 @@ def create_member(data):
     save_to_disk()
     return new_member
 
+@_synchronized_store
 def update_member(member_id, data):
     member = get_member_by_id(member_id)
     if not member:
@@ -284,6 +397,7 @@ def update_member(member_id, data):
     save_to_disk()
     return member
 
+@_synchronized_store
 def delete_member(member_id):
     global MEMBERS
     member = get_member_by_id(member_id)
@@ -298,15 +412,18 @@ def delete_member(member_id):
 # CRUD & FITUR TRANSAKSI (MULTI-ENTITY)
 # (Mengintegrasikan Product, Member, & Transaction)
 # ==========================================
+@_synchronized_store
 def get_transactions():
     return TRANSACTIONS
 
+@_synchronized_store
 def get_transaction_by_id(trx_id):
     for t in TRANSACTIONS:
         if str(t["id"]).lower() == str(trx_id).lower():
             return t
     return None
 
+@_synchronized_store
 def create_transaction(data):
     raw_items = data.get("items", [])
     if not raw_items:
@@ -386,6 +503,7 @@ def create_transaction(data):
     save_to_disk()
     return new_trx
 
+@_synchronized_store
 def delete_transaction(trx_id):
     global TRANSACTIONS
     trx = get_transaction_by_id(trx_id)
@@ -399,9 +517,11 @@ def delete_transaction(trx_id):
 # ==========================================
 # CRUD ENTITAS USER & AUTH
 # ==========================================
+@_synchronized_store
 def get_users():
     return [{"id": u["id"], "username": u["username"], "email": u["email"], "role": u["role"]} for u in USERS]
 
+@_synchronized_store
 def authenticate_user(email, password):
     for u in USERS:
         if u["email"].lower() == str(email).lower() and u["password"] == password:
@@ -413,6 +533,7 @@ def authenticate_user(email, password):
             }
     return None
 
+@_synchronized_store
 def create_user(data):
     email = data.get("email", "").strip()
     for u in USERS:
@@ -437,6 +558,7 @@ def create_user(data):
         "role": new_user["role"],
     }
 
+@_synchronized_store
 def get_stats():
     total_sales = sum(t["total"] for t in TRANSACTIONS)
     total_products = len(PRODUCTS)

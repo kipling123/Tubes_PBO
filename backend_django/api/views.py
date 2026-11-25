@@ -27,7 +27,7 @@ def api_root(request):
         "status": "success",
         "message": "POS Cloud Computing Tugas 9 Backend (Django Architecture)",
         "version": "1.0.0",
-        "persistence": "In-Memory Python Dict/JSON Store (No Database, conforming to Tugas 9)",
+        "persistence": "In-Memory Python Dict with atomic JSON file persistence (POS_DATA_FILE, EFS-ready; no database)",
         "entities": ["Product", "Member", "Transaction", "User"],
         "endpoints": {
             "products": "/api/products/",
