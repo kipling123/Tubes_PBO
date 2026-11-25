@@ -1,13 +1,9 @@
+# Stack frontend: S3 + CloudFront.
+# Compute, ALB, Target Group, Launch Template, dan ASG dikelola oleh
+# stack `infra/aws` (Load Balancing Engineer). Lihat DEPLOYMENT.md.
+
 aws_region = "ap-southeast-1"
 project    = "toko-maju-pos"
-key_name   = "toko-maju-key"
 
-# Batasi SSH ke IP publik kamu. Cari dengan: curl -s https://checkip.amazonaws.com
-admin_cidr = "203.0.113.10/32"
-
-# Diisi oleh Load Balancing Engineer setelah ALB dibuat.
-# Selama kosong, port 80 dibuka ke publik agar demo tetap bisa diakses.
-# alb_security_group_id = "sg-0123456789abcdef0"
-
-# Opsional: subnet tertentu. Kosong = subnet pertama di default VPC.
-# subnet_id = "subnet-0123456789abcdef0"
+# Opsional: nama bucket harus unik secara global. Kosongkan untuk otomatis.
+# bucket_name = "toko-maju-pos-frontend-123456789012"

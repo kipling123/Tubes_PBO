@@ -72,20 +72,26 @@ if [[ ! -f "${ENV_FILE}" ]]; then
   SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_urlsafe(50))')"
   PUBLIC_IP="$(imds public-ipv4)"
 
-  ALLOWED_HOSTS="localhost,127.0.0.1"
-  if [[ -n "${PUBLIC_IP}" ]]; then
-    ALLOWED_HOSTS="${ALLOWED_HOSTS},${PUBLIC_IP}"
-  else
-    # Fallback untuk lab lokal / tanpa metadata EC2.
-    ALLOWED_HOSTS="${ALLOWED_HOSTS},*"
+  # Launch Template infra/aws mengirim DNS ALB lewat DJANGO_ALLOWED_HOSTS.
+  ALLOWED_HOSTS="${DJANGO_ALLOWED_HOSTS:-}"
+  if [[ -z "${ALLOWED_HOSTS}" ]]; then
+    ALLOWED_HOSTS="localhost,127.0.0.1"
+    if [[ -n "${PUBLIC_IP}" ]]; then
+      ALLOWED_HOSTS="${ALLOWED_HOSTS},${PUBLIC_IP}"
+    else
+      # Fallback untuk lab lokal / tanpa metadata EC2.
+      ALLOWED_HOSTS="${ALLOWED_HOSTS},*"
+    fi
   fi
+
+  CORS_ORIGINS="${CORS_ALLOWED_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080}"
 
   cat > "${ENV_FILE}" <<EOF
 DJANGO_DEBUG=False
 DJANGO_SECRET_KEY=${SECRET_KEY}
 DJANGO_ALLOWED_HOSTS=${ALLOWED_HOSTS}
 CORS_ALLOW_ALL_ORIGINS=False
-CORS_ALLOWED_ORIGINS=http://localhost:8080,http://127.0.0.1:8080
+CORS_ALLOWED_ORIGINS=${CORS_ORIGINS}
 GUNICORN_WORKERS=3
 GUNICORN_BIND=127.0.0.1:8000
 GUNICORN_TIMEOUT=60

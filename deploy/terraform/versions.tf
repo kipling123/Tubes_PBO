@@ -18,6 +18,7 @@ provider "aws" {
       Environment = var.environment
       ManagedBy   = "terraform"
       Course      = "Tugas-9-Komputasi-Awan"
+      Layer       = "frontend"
     }
   }
 }

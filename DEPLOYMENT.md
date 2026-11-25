@@ -7,8 +7,9 @@ Dokumen ini adalah runbook untuk **scope task 1** pada Tugas 9 Komputasi Awan:
 3. Nginx + Gunicorn
 4. Security Groups
 
-ALB/Target Group/Auto Scaling, EFS, dan CloudWatch **tidak** termasuk scope ini
-(dikerjakan anggota lain). Lihat bagian [Handoff](#handoff-ke-anggota-lain).
+ALB/Target Group/Auto Scaling dibuat oleh anggota Load Balancing di
+`infra/aws/`. EFS dan CloudWatch dikelola anggota lain. Runbook ini menjelaskan
+cara kedua stack Terraform itu saling melengkapi.
 
 > Status: artefak siap dipakai, tetapi **belum dieksekusi di AWS** karena tidak
 > ada akun AWS. Bukti yang tersedia berasal dari lab lokal (Nginx + Gunicorn).
@@ -45,14 +46,15 @@ Security Group   →  membatasi akses ke EC2
 
 | File | Fungsi |
 | --- | --- |
-| `deploy/terraform/` | S3, CloudFront, EC2, EIP, Security Group |
+| `deploy/terraform/` | S3 + CloudFront (frontend) saja |
+| `infra/aws/` | VPC, ALB, Target Group, EC2/ASG, Launch Template, Security Group (anggota LB) |
 | `deploy/nginx/pos.conf` | Konfigurasi Nginx produksi di EC2 |
 | `deploy/systemd/pos-backend.service` | Service Gunicorn |
 | `deploy/gunicorn.conf.py` | Konfigurasi Gunicorn |
 | `deploy/env/backend.env.example` | Template environment backend |
 | `deploy/env/frontend.env.example` | Template `VITE_API_BASE_URL` |
 | `deploy/scripts/setup-ec2.sh` | Provision EC2 (Ubuntu 24.04) |
-| `deploy/scripts/cloud-init.sh.tftpl` | User-data EC2 dari Terraform |
+| `infra/aws/user_data.sh.tftpl` | User-data EC2 dari stack `infra/aws` |
 | `deploy/scripts/deploy-frontend.sh` | Build → S3 → invalidasi CloudFront |
 | `deploy/scripts/local-lab-up.sh` | Lab lokal Nginx + Gunicorn |
 | `deploy/scripts/local-lab-down.sh` | Hentikan lab lokal |
@@ -65,7 +67,7 @@ Security Group   →  membatasi akses ke EC2
 - Terraform >= 1.6
 - AWS CLI v2 (untuk upload frontend)
 - Akun AWS + IAM user dengan izin S3, CloudFront, EC2, VPC
-- EC2 Key Pair sudah dibuat di region target
+- EC2 Key Pair (untuk `infra/aws` bila SSH admin diaktifkan)
 - Node.js + npm (sudah ada)
 - Python 3.12+ (Ubuntu 24.04)
 
@@ -81,7 +83,7 @@ Jika belum punya akun AWS, lewati langkah Terraform dan gunakan
 ```bash
 cd deploy/terraform
 cp terraform.tfvars.example terraform.tfvars
-# edit terraform.tfvars: key_name dan admin_cidr wajib
+# opsional: set bucket_name agar unik secara global
 terraform init
 terraform fmt
 terraform validate
@@ -95,7 +97,6 @@ Output penting:
 terraform output cloudfront_domain_name
 terraform output cloudfront_distribution_id
 terraform output s3_bucket_name
-terraform output ec2_public_ip
 ```
 
 ### 4.2 Build dan upload
@@ -130,14 +131,36 @@ Skrip akan:
 
 ## 5. Provision EC2 + Nginx + Gunicorn
 
-### 5.1 Melalui Terraform
+### 5.1 Melalui stack `infra/aws` (direkomendasikan)
 
-`terraform apply` pada langkah 4.1 sudah membuat EC2 dan menjalankan
-`cloud-init.sh.tftpl`, yang:
+Compute dibuat oleh stack **Load Balancing Engineer** di `infra/aws/` agar
+EC2/ASG dan ALB berada dalam satu VPC yang sama:
+
+```bash
+cd infra/aws
+cp terraform.tfvars.example terraform.tfvars
+# wajib: backend_repo_url; opsional: additional_cors_origins = domain CloudFront
+terraform init
+terraform fmt -check
+terraform validate
+terraform plan
+terraform apply
+```
+
+Launch Template menjalankan `user_data.sh.tftpl`, yang:
 
 1. install `git`,
 2. clone repo ke `/opt/pos`,
-3. menjalankan `deploy/scripts/setup-ec2.sh`.
+3. menjalankan `deploy/scripts/setup-ec2.sh` dengan
+   `DJANGO_ALLOWED_HOSTS=<alb-dns>` dan `CORS_ALLOWED_ORIGINS` dari variabel.
+
+`deploy/terraform/` **hanya** membuat S3 + CloudFront. Tidak ada EC2/SG ganda.
+
+> **Penting:** `backend_git_ref` harus menunjuk branch yang sudah memuat
+> `deploy/scripts/setup-ec2.sh`, `deploy/nginx/pos.conf`, dan
+> `deploy/systemd/pos-backend.service` (yaitu branch ini). Branch `main` belum
+> memuat file-file tersebut selama PR belum di-merge. Set `backend_git_ref`
+> ke branch yang sudah tersedia di remote sebelum `terraform apply`.
 
 ### 5.2 Manual di EC2
 
@@ -157,7 +180,8 @@ sudo bash /opt/pos/deploy/scripts/setup-ec2.sh
 - membuat virtualenv di `/opt/pos/venv`;
 - install `backend_django/requirements.txt`;
 - membuat `/etc/pos/backend.env` dengan `DJANGO_SECRET_KEY` acak;
-- mengambil public IP EC2 lewat **IMDSv2**;
+- mengambil public IP EC2 lewat **IMDSv2** bila `DJANGO_ALLOWED_HOSTS`
+  tidak diberikan;
 - memasang systemd unit `pos-backend`;
 - memasang Nginx site dan menghapus default site;
 - `nginx -t`, enable, dan start service.
@@ -270,13 +294,12 @@ bash deploy/scripts/local-lab-down.sh
 
 ## 7. Security Groups
 
-`deploy/terraform/security_groups.tf` membuat SG EC2 dengan aturan:
+`infra/aws/main.tf` membuat SG backend dengan aturan:
 
 | Arah | Port | Source | Alasan |
 | --- | --- | --- | --- |
-| Ingress | 22 | `admin_cidr` | SSH hanya dari IP admin |
+| Ingress | 22 | `ssh_cidr_blocks` | SSH hanya dari CIDR admin (opsional) |
 | Ingress | 80 | SG ALB | Hanya ALB yang boleh memanggil Nginx |
-| Ingress | 80 | `0.0.0.0/0` (sementara) | Jika ALB belum ada |
 | Ingress | 8000 | — | **Tidak pernah dibuka** |
 | Egress | all | `0.0.0.0/0` | apt/pip/API keluar |
 
@@ -288,8 +311,8 @@ Gunicorn **wajib** bind ke `127.0.0.1:8000`, bukan `0.0.0.0:8000`.
 
 | Interface | Disiapkan di sini | Dibutuhkan dari |
 | --- | --- | --- |
-| ALB → EC2 | SG menerima port 80 dari SG ALB | ID Security Group ALB |
-| Health check | `GET /api/health/` (200 JSON) | Path/port Target Group |
+| ALB → EC2 | SG backend menerima port 80 dari SG ALB | Sudah ada di `infra/aws` |
+| Health check | `GET /api/health/` (200 JSON) | Target Group: port 80, path `/api/health/` |
 | Frontend → API | `VITE_API_BASE_URL` saat build | DNS/URL ALB |
 | EFS shared state | `ReadWritePaths` di systemd | Path mount EFS |
 | HTTPS API | Nginx siap di belakang ALB | ACM/ALB dari member 2 |
@@ -348,9 +371,9 @@ Matikan EC2 setelah demo agar tidak terus tertagih.
 | Bagian laporan | Isi dari repo ini |
 | --- | --- |
 | b.3 poin 1 (S3 & CloudFront) | `deploy/terraform/s3_cloudfront.tf` |
-| b.3 poin 2 (EC2) | `deploy/terraform/ec2.tf`, `setup-ec2.sh` |
+| b.3 poin 2 (EC2) | `infra/aws/main.tf` (Launch Template + ASG), `setup-ec2.sh` |
 | b.3 poin 3 (Nginx/Gunicorn) | `deploy/nginx/pos.conf`, `gunicorn.conf.py`, systemd unit |
-| Security Groups | `deploy/terraform/security_groups.tf` |
+| Security Groups | `infra/aws/main.tf` (`aws_security_group.backend`) |
 | Bukti implementasi | screenshot lab lokal + log health/checkout |
 
 Untuk laporan, tulis bahwa eksekusi AWS belum dilakukan dan lampirkan bukti

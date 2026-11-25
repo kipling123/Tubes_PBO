@@ -57,6 +57,12 @@ variable "additional_allowed_hosts" {
   default     = []
 }
 
+variable "additional_cors_origins" {
+  description = "Extra browser origins allowed by Django CORS, e.g. the CloudFront domain from the frontend stack."
+  type        = list(string)
+  default     = []
+}
+
 variable "acm_certificate_arn" {
   description = "Optional ACM certificate ARN in the same region. When set, HTTPS is enabled and HTTP redirects to HTTPS."
   type        = string

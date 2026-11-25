@@ -94,9 +94,9 @@ resource "aws_security_group" "backend" {
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    description     = "Django/Gunicorn API from ALB"
-    from_port       = 8000
-    to_port         = 8000
+    description     = "Nginx HTTP API from ALB (Gunicorn tetap 127.0.0.1:8000)"
+    from_port       = 80
+    to_port         = 80
     protocol        = "tcp"
     security_groups = [aws_security_group.alb.id]
   }
@@ -139,7 +139,7 @@ resource "aws_lb" "api" {
 
 resource "aws_lb_target_group" "api" {
   name                          = substr("${var.name_prefix}-api-tg", 0, 32)
-  port                          = 8000
+  port                          = 80
   protocol                      = "HTTP"
   protocol_version              = "HTTP1"
   target_type                   = "instance"
@@ -202,10 +202,11 @@ resource "aws_launch_template" "backend" {
   image_id      = data.aws_ami.ubuntu.id
   instance_type = var.instance_type
   key_name      = var.key_name == "" ? null : var.key_name
-  user_data     = base64encode(templatefile("${path.module}/user_data.sh.tftpl", {
-    backend_repo_url      = var.backend_repo_url
-    backend_git_ref       = var.backend_git_ref
+  user_data = base64encode(templatefile("${path.module}/user_data.sh.tftpl", {
+    backend_repo_url     = var.backend_repo_url
+    backend_git_ref      = var.backend_git_ref
     django_allowed_hosts = join(",", concat([aws_lb.api.dns_name], var.additional_allowed_hosts))
+    cors_allowed_origins = join(",", concat(["http://localhost:8080", "http://127.0.0.1:8080"], var.additional_cors_origins))
   }))
 
   network_interfaces {
@@ -240,7 +241,7 @@ resource "aws_autoscaling_group" "backend" {
   health_check_type         = "ELB"
   health_check_grace_period = 300
   vpc_zone_identifier       = aws_subnet.public[*].id
-  target_group_arns          = [aws_lb_target_group.api.arn]
+  target_group_arns         = [aws_lb_target_group.api.arn]
 
   launch_template {
     id      = aws_launch_template.backend.id
@@ -270,15 +271,15 @@ resource "aws_autoscaling_group" "backend" {
 }
 
 resource "aws_autoscaling_policy" "cpu_target_tracking" {
-  name                   = "${var.name_prefix}-cpu-target-tracking"
-  autoscaling_group_name = aws_autoscaling_group.backend.name
-  policy_type            = "TargetTrackingScaling"
+  name                      = "${var.name_prefix}-cpu-target-tracking"
+  autoscaling_group_name    = aws_autoscaling_group.backend.name
+  policy_type               = "TargetTrackingScaling"
+  estimated_instance_warmup = 180
 
   target_tracking_configuration {
     target_value = var.target_cpu_utilization
     predefined_metric_specification {
       predefined_metric_type = "ASGAverageCPUUtilization"
     }
-    estimated_instance_warmup = 180
   }
 }
