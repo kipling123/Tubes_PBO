@@ -1,0 +1,32 @@
+[Unit]
+Description=Toko Maju POS - Django backend (Gunicorn)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=posapp
+Group=posapp
+UMask=0027
+WorkingDirectory=/opt/pos/backend_django
+EnvironmentFile=/etc/pos/backend.env
+ExecStart=/opt/pos/venv/bin/gunicorn --config /opt/pos/deploy/gunicorn.conf.py pos_backend.wsgi:application
+Restart=always
+RestartSec=3
+TimeoutStopSec=30
+KillSignal=SIGTERM
+
+# Hardening dasar. Jika state JSON dipindah ke EFS (member 3),
+# tambahkan path mount-nya ke ReadWritePaths.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/opt/pos/backend_django
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=pos-backend
+
+[Install]
+WantedBy=multi-user.target
