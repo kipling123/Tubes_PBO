@@ -1,5 +1,6 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { AppContext } from './context/AppContext';
+import API_BASE from './config/api';
 import Sidebar from './components/Sidebar';
 import AddProductDrawer from './components/tambahProduk';
 import { jsPDF } from 'jspdf';
@@ -248,7 +249,7 @@ function App() {
 
     // Simpan ke backend Django
     try {
-      fetch('http://127.0.0.1:8000/api/users/', {
+      fetch(`${API_BASE}/users/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newUser)
@@ -303,7 +304,7 @@ function App() {
       console.error(e);
     }
     try {
-      fetch('http://127.0.0.1:8000/api/users/', {
+      fetch(`${API_BASE}/users/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(user)

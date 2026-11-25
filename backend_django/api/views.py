@@ -16,6 +16,11 @@ def parse_json_body(request):
 # ==========================================
 # API ROOT & STATS
 # ==========================================
+def health_check(request):
+    """Lightweight endpoint for load balancer target health checks."""
+    return JsonResponse({"status": "ok"})
+
+
 def api_root(request):
     return JsonResponse({
         "status": "success",
