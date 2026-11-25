@@ -1,0 +1,380 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Shared EFS JSON state, CloudWatch monitoring, SNS alerts, and S3 backup access for Toko Maju POS.
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC that contains the POS backend instances.
+  BackendSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: Security group attached to the POS backend EC2 instances.
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet::Id
+    Description: Private subnet in the first Availability Zone.
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet::Id
+    Description: Private subnet in a different Availability Zone.
+  PrivateSubnetC:
+    Type: String
+    Default: ""
+    Description: Optional private subnet in a third Availability Zone.
+  AutoScalingGroupName:
+    Type: String
+    Description: Existing backend Auto Scaling Group name used for the CPU alarm and dashboard.
+  AlarmEmail:
+    Type: String
+    AllowedPattern: ^[^\s@]+@[^\s@]+\.[^\s@]+$
+    Description: Email address to subscribe to CloudWatch alarm notifications.
+  EfsPosixUid:
+    Type: String
+    Default: "1000"
+    AllowedPattern: ^[0-9]{1,10}$
+    Description: Linux UID used by the EFS access point (use the backend service user's UID).
+  EfsPosixGid:
+    Type: String
+    Default: "1000"
+    AllowedPattern: ^[0-9]{1,10}$
+    Description: Linux GID used by the EFS access point (use the backend service user's GID).
+
+Conditions:
+  HasThirdSubnet: !Not [!Equals [!Ref PrivateSubnetC, ""]]
+
+Resources:
+  EfsMountTargetSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow NFS from POS backend instances to the shared EFS file system.
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 2049
+          ToPort: 2049
+          SourceSecurityGroupId: !Ref BackendSecurityGroupId
+      Tags:
+        - Key: Name
+          Value: pos-efs-mount-targets
+
+  PosSharedFileSystem:
+    Type: AWS::EFS::FileSystem
+    Properties:
+      Encrypted: true
+      PerformanceMode: generalPurpose
+      ThroughputMode: bursting
+      BackupPolicy:
+        Status: ENABLED
+      LifecyclePolicies:
+        - TransitionToIA: AFTER_30_DAYS
+      FileSystemTags:
+        - Key: Name
+          Value: toko-maju-pos-shared-json
+
+  PosDataAccessPoint:
+    Type: AWS::EFS::AccessPoint
+    Properties:
+      FileSystemId: !Ref PosSharedFileSystem
+      PosixUser:
+        Uid: !Ref EfsPosixUid
+        Gid: !Ref EfsPosixGid
+      RootDirectory:
+        Path: /pos-data
+        CreationInfo:
+          OwnerUid: !Ref EfsPosixUid
+          OwnerGid: !Ref EfsPosixGid
+          Permissions: "0770"
+      AccessPointTags:
+        - Key: Name
+          Value: toko-maju-pos-json
+
+  EfsFileSystemPolicy:
+    Type: AWS::EFS::FileSystemPolicy
+    Properties:
+      FileSystemId: !Ref PosSharedFileSystem
+      Policy:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt PosEc2Role.Arn
+            Action:
+              - elasticfilesystem:ClientMount
+              - elasticfilesystem:ClientWrite
+            Resource: !Sub arn:${AWS::Partition}:elasticfilesystem:${AWS::Region}:${AWS::AccountId}:file-system/${PosSharedFileSystem}
+            Condition:
+              Bool:
+                aws:SecureTransport: "true"
+              StringEquals:
+                elasticfilesystem:AccessPointArn: !GetAtt PosDataAccessPoint.Arn
+
+  EfsMountTargetA:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref PosSharedFileSystem
+      SubnetId: !Ref PrivateSubnetA
+      SecurityGroups:
+        - !Ref EfsMountTargetSecurityGroup
+
+  EfsMountTargetB:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref PosSharedFileSystem
+      SubnetId: !Ref PrivateSubnetB
+      SecurityGroups:
+        - !Ref EfsMountTargetSecurityGroup
+
+  EfsMountTargetC:
+    Type: AWS::EFS::MountTarget
+    Condition: HasThirdSubnet
+    Properties:
+      FileSystemId: !Ref PosSharedFileSystem
+      SubnetId: !Ref PrivateSubnetC
+      SecurityGroups:
+        - !Ref EfsMountTargetSecurityGroup
+
+  JsonBackupBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireJsonSnapshots
+            Status: Enabled
+            Prefix: pos-json/
+            ExpirationInDays: 90
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 30
+      Tags:
+        - Key: Name
+          Value: toko-maju-pos-json-backups
+
+  JsonBackupBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref JsonBackupBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: s3:*
+            Resource:
+              - !GetAtt JsonBackupBucket.Arn
+              - !Sub ${JsonBackupBucket.Arn}/*
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+
+  PosEc2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Tags:
+        - Key: Name
+          Value: toko-maju-pos-ec2
+
+  PosEc2Policy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: PosEfsAndJsonBackupAccess
+      Roles:
+        - !Ref PosEc2Role
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - elasticfilesystem:ClientMount
+              - elasticfilesystem:ClientWrite
+            Resource: !Sub arn:${AWS::Partition}:elasticfilesystem:${AWS::Region}:${AWS::AccountId}:file-system/${PosSharedFileSystem}
+            Condition:
+              StringEquals:
+                elasticfilesystem:AccessPointArn: !GetAtt PosDataAccessPoint.Arn
+          - Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:AbortMultipartUpload
+            Resource: !Sub ${JsonBackupBucket.Arn}/pos-json/*
+          - Effect: Allow
+            Action:
+              - s3:GetBucketLocation
+            Resource: !GetAtt JsonBackupBucket.Arn
+          - Effect: Allow
+            Action:
+              - s3:ListBucket
+            Resource: !GetAtt JsonBackupBucket.Arn
+            Condition:
+              StringLike:
+                s3:prefix:
+                  - pos-json/*
+
+  PosEc2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref PosEc2Role
+
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: Toko Maju POS CloudWatch Alerts
+
+  AlarmEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: email
+      Endpoint: !Ref AlarmEmail
+      TopicArn: !Ref AlarmTopic
+
+  BackendCpuAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Average backend EC2 CPU is at least 70 percent for two consecutive five-minute periods.
+      Namespace: AWS/EC2
+      MetricName: CPUUtilization
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref AutoScalingGroupName
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      DatapointsToAlarm: 2
+      Threshold: 70
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlarmTopic
+      OKActions:
+        - !Ref AlarmTopic
+
+  EfsIoLimitAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: EFS PercentIOLimit is at least 80 percent for two consecutive five-minute periods.
+      Namespace: AWS/EFS
+      MetricName: PercentIOLimit
+      Dimensions:
+        - Name: FileSystemId
+          Value: !Ref PosSharedFileSystem
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 2
+      DatapointsToAlarm: 2
+      Threshold: 80
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions:
+        - !Ref AlarmTopic
+      OKActions:
+        - !Ref AlarmTopic
+
+  PosObservabilityDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: toko-maju-pos-shared-storage
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "title": "Backend Auto Scaling Group CPU",
+                "region": "${AWS::Region}",
+                "period": 300,
+                "stat": "Average",
+                "metrics": [
+                  ["AWS/EC2", "CPUUtilization", "AutoScalingGroupName", "${AutoScalingGroupName}"]
+                ],
+                "yAxis": {"left": {"min": 0, "max": 100}}
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "title": "EFS Connections and I/O Limit",
+                "region": "${AWS::Region}",
+                "period": 300,
+                "metrics": [
+                  ["AWS/EFS", "ClientConnections", "FileSystemId", "${PosSharedFileSystem}", {"stat": "Average", "yAxis": "left"}],
+                  ["AWS/EFS", "PercentIOLimit", "FileSystemId", "${PosSharedFileSystem}", {"stat": "Maximum", "yAxis": "right"}]
+                ],
+                "yAxis": {"right": {"min": 0, "max": 100}}
+              }
+            },
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 6,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "title": "EFS Metered I/O",
+                "region": "${AWS::Region}",
+                "period": 300,
+                "metrics": [
+                  ["AWS/EFS", "MeteredIOBytes", "FileSystemId", "${PosSharedFileSystem}", {"stat": "Sum"}]
+                ]
+              }
+            },
+            {
+              "type": "alarm",
+              "x": 12,
+              "y": 6,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "title": "POS Infrastructure Alarms",
+                "alarms": [
+                  "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${BackendCpuAlarm}",
+                  "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${EfsIoLimitAlarm}"
+                ]
+              }
+            }
+          ]
+        }
+
+Outputs:
+  FileSystemId:
+    Description: Shared encrypted EFS file system ID.
+    Value: !Ref PosSharedFileSystem
+  AccessPointId:
+    Description: EFS access point for the shared JSON data directory.
+    Value: !Ref PosDataAccessPoint
+  EfsMountTargetSecurityGroupId:
+    Description: Security group attached to EFS mount targets.
+    Value: !Ref EfsMountTargetSecurityGroup
+  BackupBucketName:
+    Description: Versioned S3 bucket used by the periodic JSON backup script.
+    Value: !Ref JsonBackupBucket
+  Ec2InstanceProfileName:
+    Description: Attach this instance profile to the backend Auto Scaling Group launch template.
+    Value: !Ref PosEc2InstanceProfile
+  DashboardName:
+    Description: CloudWatch dashboard name.
+    Value: !Ref PosObservabilityDashboard
+  AlarmTopicArn:
+    Description: SNS topic used for CloudWatch alarm and recovery notifications.
+    Value: !Ref AlarmTopic

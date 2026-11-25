@@ -53,4 +53,8 @@ The health endpoint's Django regression test can be run from `backend_django/` w
 
 ## Important application limitation
 
-This infrastructure balances requests but **does not make the application's data shared or safe for concurrent writes**. The current Django store initializes Python lists/dictionaries per process/instance and writes to a local JSON file. Two EC2 nodes can return divergent products, inventory, members, and transactions; even a shared JSON file would need locking/atomic writes. For a demo that changes POS data, disable horizontal scaling by setting `min_size = 1`, `desired_capacity = 1`, and `max_size = 1`. For a multi-instance demonstration, use read-only `/api/products/` traffic and be explicit about this limitation. Coordinate EFS/shared JSON and concurrency handling with the storage engineer before claiming consistent multi-node POS transactions.
+The Terraform ALB/ASG stack alone does **not** make application data shared: instances use local JSON until the separate EFS stack is deployed, the access point is mounted, and `POS_DATA_FILE` points to the shared file. Do not enable multi-instance POS writes before completing those steps. The shared store serializes API operations and uses atomic JSON replacement; see [SHARED_STORAGE.md](./SHARED_STORAGE.md). For a demo without EFS, disable horizontal scaling (`min_size = 1`, `desired_capacity = 1`, `max_size = 1`) or keep traffic read-only.
+
+## Shared JSON storage, monitoring, and backups
+
+The EFS shared-state implementation, CloudWatch dashboard and SNS alarms, and daily S3 JSON backup are documented separately in [SHARED_STORAGE.md](./SHARED_STORAGE.md). Deploy those resources before enabling multi-instance POS writes. The shared store serializes API operations and uses atomic JSON replacement; the CloudFormation stack expects the VPC, backend Auto Scaling Group, and backend security group described above to already exist.
