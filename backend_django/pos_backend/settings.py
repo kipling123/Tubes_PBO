@@ -21,13 +21,13 @@ def env_list(name, default):
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv(
-    'SECRET_KEY',
+    'DJANGO_SECRET_KEY',
     'django-insecure-pos-cloud-computing-task9-secret-key',
 )
 
-DEBUG = env_bool('DEBUG', True)
+DEBUG = env_bool('DJANGO_DEBUG', True)
 
-ALLOWED_HOSTS = env_list('ALLOWED_HOSTS', ['*'])
+ALLOWED_HOSTS = env_list('DJANGO_ALLOWED_HOSTS', ['*'])
 
 INSTALLED_APPS = [
     'django.contrib.staticfiles',

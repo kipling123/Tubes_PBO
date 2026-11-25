@@ -50,8 +50,8 @@ fi
 
 echo
 echo "-- 4. Reverse proxy ke Gunicorn --"
+check "GET /api/health/ -> 200" "200" "$(curl -s -o /dev/null -w '%{http_code}' "${HOST}/api/health/")"
 check "GET /api/health/ status ok" '"status": "ok"' "$(curl -s "${HOST}/api/health/")"
-check "GET /api/health/ punya timestamp" '"timestamp"' "$(curl -s "${HOST}/api/health/")"
 check "GET /api/products/ sukses" '"status": "success"' "$(curl -s "${HOST}/api/products/")"
 check "GET /api/ root sukses" '"status": "success"' "$(curl -s "${HOST}/api/")"
 

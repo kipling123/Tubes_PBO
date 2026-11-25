@@ -156,8 +156,8 @@ sudo bash /opt/pos/deploy/scripts/setup-ec2.sh
 - membuat user sistem `posapp`;
 - membuat virtualenv di `/opt/pos/venv`;
 - install `backend_django/requirements.txt`;
-- membuat `/etc/pos/backend.env` dengan `SECRET_KEY` acak;
-- mengambil public IP dan instance ID lewat **IMDSv2**;
+- membuat `/etc/pos/backend.env` dengan `DJANGO_SECRET_KEY` acak;
+- mengambil public IP EC2 lewat **IMDSv2**;
 - memasang systemd unit `pos-backend`;
 - memasang Nginx site dan menghapus default site;
 - `nginx -t`, enable, dan start service.
@@ -175,13 +175,11 @@ journalctl -u pos-backend -n 50 --no-pager
 Contoh respons health:
 
 ```json
-{
-  "status": "ok",
-  "service": "toko-maju-pos-backend",
-  "instance": "i-0123456789abcdef0",
-  "timestamp": "2026-11-25T12:00:00+00:00"
-}
+{"status": "ok"}
 ```
+
+Respons sengaja minimal agar cocok dengan `backend_django/api/tests.py` dan
+health check Target Group di `infra/aws/main.tf` (`matcher = "200"`).
 
 ### 5.5 Environment backend
 
@@ -196,9 +194,9 @@ Nilai penting:
 
 | Variabel | Contoh produksi |
 | --- | --- |
-| `DEBUG` | `False` |
-| `SECRET_KEY` | hasil `secrets.token_urlsafe(50)` |
-| `ALLOWED_HOSTS` | `localhost,127.0.0.1,<ec2-ip>,<alb-dns>` |
+| `DJANGO_DEBUG` | `False` |
+| `DJANGO_SECRET_KEY` | hasil `secrets.token_urlsafe(50)` |
+| `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1,<ec2-ip>,<alb-dns>` |
 | `CORS_ALLOWED_ORIGINS` | `https://<cloudfront-domain>` |
 | `GUNICORN_WORKERS` | `3` |
 | `GUNICORN_BIND` | `127.0.0.1:8000` |
@@ -336,7 +334,7 @@ Matikan EC2 setelah demo agar tidak terus tertagih.
 | Gejala | Penyebab umum | Solusi |
 | --- | --- | --- |
 | `502 Bad Gateway` dari Nginx | Gunicorn mati | `systemctl status pos-backend`, cek log |
-| `DisallowedHost` | Host tidak ada di `ALLOWED_HOSTS` | tambahkan IP/domain, restart |
+| `DisallowedHost` | Host tidak ada di `DJANGO_ALLOWED_HOSTS` | tambahkan IP/domain, restart |
 | CORS error di browser | Origin CloudFront belum diizinkan | update `CORS_ALLOWED_ORIGINS` |
 | CloudFront 403 | Bucket policy/OAC salah | cek policy dan OAC |
 | Refresh route 404 | SPA fallback belum jalan | cek custom error 403/404 |

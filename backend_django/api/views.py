@@ -1,7 +1,4 @@
 import json
-import os
-import socket
-from datetime import datetime, timezone
 
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -20,6 +17,11 @@ def parse_json_body(request):
 # ==========================================
 # API ROOT & STATS
 # ==========================================
+def health_check(request):
+    """Lightweight endpoint for load balancer target health checks."""
+    return JsonResponse({"status": "ok"})
+
+
 def api_root(request):
     return JsonResponse({
         "status": "success",
@@ -40,16 +42,6 @@ def api_root(request):
 
 def stats_view(request):
     return JsonResponse({"status": "success", "data": data_store.get_stats()})
-
-
-def health_view(request):
-    """Health check untuk Nginx/ALB Target Group dan monitoring."""
-    return JsonResponse({
-        "status": "ok",
-        "service": "toko-maju-pos-backend",
-        "instance": os.getenv("INSTANCE_ID") or socket.gethostname(),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    })
 
 
 # ==========================================

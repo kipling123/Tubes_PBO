@@ -1,6 +1,6 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { AppContext } from './context/AppContext';
-import { API_BASE } from './config';
+import API_BASE from './config/api';
 import Sidebar from './components/Sidebar';
 import AddProductDrawer from './components/tambahProduk';
 import { jsPDF } from 'jspdf';

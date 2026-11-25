@@ -71,7 +71,6 @@ imds() {
 if [[ ! -f "${ENV_FILE}" ]]; then
   SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_urlsafe(50))')"
   PUBLIC_IP="$(imds public-ipv4)"
-  INSTANCE_ID="$(imds instance-id)"
 
   ALLOWED_HOSTS="localhost,127.0.0.1"
   if [[ -n "${PUBLIC_IP}" ]]; then
@@ -82,9 +81,9 @@ if [[ ! -f "${ENV_FILE}" ]]; then
   fi
 
   cat > "${ENV_FILE}" <<EOF
-DEBUG=False
-SECRET_KEY=${SECRET_KEY}
-ALLOWED_HOSTS=${ALLOWED_HOSTS}
+DJANGO_DEBUG=False
+DJANGO_SECRET_KEY=${SECRET_KEY}
+DJANGO_ALLOWED_HOSTS=${ALLOWED_HOSTS}
 CORS_ALLOW_ALL_ORIGINS=False
 CORS_ALLOWED_ORIGINS=http://localhost:8080,http://127.0.0.1:8080
 GUNICORN_WORKERS=3
@@ -93,7 +92,6 @@ GUNICORN_TIMEOUT=60
 GUNICORN_ACCESS_LOG=-
 GUNICORN_ERROR_LOG=-
 GUNICORN_LOG_LEVEL=info
-INSTANCE_ID=${INSTANCE_ID}
 EOF
   chown root:"${APP_USER}" "${ENV_FILE}"
   chmod 0640 "${ENV_FILE}"

@@ -1,0 +1,16 @@
+# Replace with the HTTPS/SSH clone URL of the shared project repository.
+backend_repo_url = "https://github.com/your-org/your-pos-repository.git"
+backend_git_ref  = "main"
+
+aws_region = "ap-southeast-1"
+
+# For a first demo, keep these small to limit cost.
+min_size              = 2
+desired_capacity      = 2
+max_size              = 4
+target_cpu_utilization = 60
+
+# Optional; leave empty to use HTTP and disable SSH.
+key_name           = ""
+ssh_cidr_blocks    = []
+acm_certificate_arn = ""

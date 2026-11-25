@@ -37,11 +37,18 @@ venv/
 .env.*.local
 
 # Terraform
+**/.terraform/*
 .terraform/
 *.tfstate
 *.tfstate.*
 *.tfvars
+!*.tfvars.example
 crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
 
 # Local lab
 .local/
