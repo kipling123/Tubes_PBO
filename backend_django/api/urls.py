@@ -3,7 +3,6 @@ from . import views
 
 urlpatterns = [
     path('', views.api_root, name='api_root'),
-    path('health/', views.health_check, name='health_check'),
     path('stats/', views.stats_view, name='stats'),
     
     # Entity 1: Products (CRUD)
