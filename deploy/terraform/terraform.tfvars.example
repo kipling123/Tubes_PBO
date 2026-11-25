@@ -5,5 +5,12 @@
 aws_region = "ap-southeast-1"
 project    = "toko-maju-pos"
 
+# Set this to `terraform -chdir=infra/aws output -raw alb_origin_domain_name`
+# after the backend/ALB stack exists. Then re-apply this frontend stack.
+api_origin_domain_name = ""
+# Default class demo uses HTTP to the ALB origin. For TLS, use a custom API
+# hostname covered by the ALB ACM certificate and set "https-only".
+api_origin_protocol_policy = "http-only"
+
 # Opsional: nama bucket harus unik secara global. Kosongkan untuk otomatis.
 # bucket_name = "toko-maju-pos-frontend-123456789012"

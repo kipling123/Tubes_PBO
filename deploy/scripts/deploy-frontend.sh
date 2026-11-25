@@ -4,7 +4,7 @@
 # Prasyarat: AWS CLI v2 sudah terkonfigurasi (aws configure / SSO).
 # Pemakaian:
 #   S3_BUCKET=... CLOUDFRONT_DISTRIBUTION_ID=... \
-#   VITE_API_BASE_URL=https://alb-dns/api \
+#   VITE_API_BASE_URL=/api \
 #   bash deploy/scripts/deploy-frontend.sh
 set -euo pipefail
 

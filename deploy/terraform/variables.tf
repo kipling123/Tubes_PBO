@@ -22,6 +22,28 @@ variable "bucket_name" {
   default     = ""
 }
 
+variable "api_origin_domain_name" {
+  description = "ALB DNS hostname (or custom DNS name resolving to the ALB) for the /api/* origin; leave empty only before the ALB exists."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.api_origin_domain_name == "" || can(regex("^[A-Za-z0-9.-]+$", var.api_origin_domain_name))
+    error_message = "api_origin_domain_name must be a DNS hostname without scheme, path, or port."
+  }
+}
+
+variable "api_origin_protocol_policy" {
+  description = "Protocol CloudFront uses to reach the ALB origin. Use https-only with a custom API hostname and matching ALB ACM certificate."
+  type        = string
+  default     = "http-only"
+
+  validation {
+    condition     = contains(["http-only", "https-only"], var.api_origin_protocol_policy)
+    error_message = "api_origin_protocol_policy must be http-only or https-only."
+  }
+}
+
 variable "price_class" {
   description = "CloudFront price class."
   type        = string

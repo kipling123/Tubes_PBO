@@ -85,6 +85,10 @@ if [[ ! -f "${ENV_FILE}" ]]; then
   fi
 
   CORS_ORIGINS="${CORS_ALLOWED_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080}"
+  POS_DATA_FILE_ENV=""
+  if [[ -n "${POS_DATA_FILE:-}" ]]; then
+    POS_DATA_FILE_ENV="POS_DATA_FILE=${POS_DATA_FILE}"
+  fi
 
   cat > "${ENV_FILE}" <<EOF
 DJANGO_DEBUG=False
@@ -98,6 +102,7 @@ GUNICORN_TIMEOUT=60
 GUNICORN_ACCESS_LOG=-
 GUNICORN_ERROR_LOG=-
 GUNICORN_LOG_LEVEL=info
+${POS_DATA_FILE_ENV}
 EOF
   chown root:"${APP_USER}" "${ENV_FILE}"
   chmod 0640 "${ENV_FILE}"

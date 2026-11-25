@@ -4,13 +4,19 @@ backend_git_ref  = "main"
 
 aws_region = "ap-southeast-1"
 
-# For a first demo, keep these small to limit cost.
-min_size              = 2
-desired_capacity      = 2
-max_size              = 4
+# First apply creates the network/ALB/ASG shell only. Provision EFS, then
+# provide its outputs below and raise desired_capacity to start backend nodes.
+min_size               = 0
+desired_capacity       = 0
+max_size               = 4
 target_cpu_utilization = 60
 
+# Fill from the shared-storage CloudFormation stack outputs after phase 1.
+efs_file_system_id        = ""
+efs_access_point_id       = ""
+efs_instance_profile_name = ""
+
 # Optional; leave empty to use HTTP and disable SSH.
-key_name           = ""
-ssh_cidr_blocks    = []
+key_name            = ""
+ssh_cidr_blocks     = []
 acm_certificate_arn = ""

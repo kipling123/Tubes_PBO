@@ -12,3 +12,8 @@ output "s3_bucket_name" {
   description = "Nama bucket S3 frontend."
   value       = aws_s3_bucket.frontend.bucket
 }
+
+output "api_origin_domain_name" {
+  description = "ALB DNS hostname configured as the CloudFront /api/* origin."
+  value       = var.api_origin_domain_name
+}

@@ -63,6 +63,24 @@ variable "additional_cors_origins" {
   default     = []
 }
 
+variable "efs_file_system_id" {
+  description = "Optional EFS file system ID from the shared-storage CloudFormation stack. Set with access point and instance profile."
+  type        = string
+  default     = ""
+}
+
+variable "efs_access_point_id" {
+  description = "Optional EFS access point ID used for the shared JSON data file."
+  type        = string
+  default     = ""
+}
+
+variable "efs_instance_profile_name" {
+  description = "Optional EC2 instance profile name from the shared-storage CloudFormation stack."
+  type        = string
+  default     = ""
+}
+
 variable "acm_certificate_arn" {
   description = "Optional ACM certificate ARN in the same region. When set, HTTPS is enabled and HTTP redirects to HTTPS."
   type        = string
@@ -75,8 +93,8 @@ variable "min_size" {
   default     = 2
 
   validation {
-    condition     = var.min_size >= 1
-    error_message = "min_size must be at least 1."
+    condition     = var.min_size >= 0
+    error_message = "min_size must be zero or greater."
   }
 }
 
@@ -86,8 +104,8 @@ variable "desired_capacity" {
   default     = 2
 
   validation {
-    condition     = var.desired_capacity >= 1
-    error_message = "desired_capacity must be at least 1."
+    condition     = var.desired_capacity >= 0
+    error_message = "desired_capacity must be zero or greater."
   }
 }
 

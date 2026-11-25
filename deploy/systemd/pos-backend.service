@@ -10,6 +10,7 @@ Group=posapp
 UMask=0027
 WorkingDirectory=/opt/pos/backend_django
 EnvironmentFile=/etc/pos/backend.env
+RequiresMountsFor=/mnt/pos-efs
 ExecStart=/opt/pos/venv/bin/gunicorn --config /opt/pos/deploy/gunicorn.conf.py pos_backend.wsgi:application
 Restart=always
 RestartSec=3
@@ -22,7 +23,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
 ProtectHome=true
-ReadWritePaths=/opt/pos/backend_django
+ReadWritePaths=/opt/pos/backend_django /mnt/pos-efs
 
 StandardOutput=journal
 StandardError=journal

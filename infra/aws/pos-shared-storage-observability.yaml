@@ -8,16 +8,16 @@ Parameters:
   BackendSecurityGroupId:
     Type: AWS::EC2::SecurityGroup::Id
     Description: Security group attached to the POS backend EC2 instances.
-  PrivateSubnetA:
+  BackendSubnetA:
     Type: AWS::EC2::Subnet::Id
-    Description: Private subnet in the first Availability Zone.
-  PrivateSubnetB:
+    Description: Backend subnet in the first Availability Zone for an EFS mount target.
+  BackendSubnetB:
     Type: AWS::EC2::Subnet::Id
-    Description: Private subnet in a different Availability Zone.
-  PrivateSubnetC:
+    Description: Backend subnet in a different Availability Zone for an EFS mount target.
+  BackendSubnetC:
     Type: String
     Default: ""
-    Description: Optional private subnet in a third Availability Zone.
+    Description: Optional backend subnet in a third Availability Zone.
   AutoScalingGroupName:
     Type: String
     Description: Existing backend Auto Scaling Group name used for the CPU alarm and dashboard.
@@ -37,7 +37,7 @@ Parameters:
     Description: Linux GID used by the EFS access point (use the backend service user's GID).
 
 Conditions:
-  HasThirdSubnet: !Not [!Equals [!Ref PrivateSubnetC, ""]]
+  HasThirdSubnet: !Not [!Equals [!Ref BackendSubnetC, ""]]
 
 Resources:
   EfsMountTargetSecurityGroup:
@@ -85,31 +85,11 @@ Resources:
         - Key: Name
           Value: toko-maju-pos-json
 
-  EfsFileSystemPolicy:
-    Type: AWS::EFS::FileSystemPolicy
-    Properties:
-      FileSystemId: !Ref PosSharedFileSystem
-      Policy:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: Allow
-            Principal:
-              AWS: !GetAtt PosEc2Role.Arn
-            Action:
-              - elasticfilesystem:ClientMount
-              - elasticfilesystem:ClientWrite
-            Resource: !Sub arn:${AWS::Partition}:elasticfilesystem:${AWS::Region}:${AWS::AccountId}:file-system/${PosSharedFileSystem}
-            Condition:
-              Bool:
-                aws:SecureTransport: "true"
-              StringEquals:
-                elasticfilesystem:AccessPointArn: !GetAtt PosDataAccessPoint.Arn
-
   EfsMountTargetA:
     Type: AWS::EFS::MountTarget
     Properties:
       FileSystemId: !Ref PosSharedFileSystem
-      SubnetId: !Ref PrivateSubnetA
+      SubnetId: !Ref BackendSubnetA
       SecurityGroups:
         - !Ref EfsMountTargetSecurityGroup
 
@@ -117,7 +97,7 @@ Resources:
     Type: AWS::EFS::MountTarget
     Properties:
       FileSystemId: !Ref PosSharedFileSystem
-      SubnetId: !Ref PrivateSubnetB
+      SubnetId: !Ref BackendSubnetB
       SecurityGroups:
         - !Ref EfsMountTargetSecurityGroup
 
@@ -126,7 +106,7 @@ Resources:
     Condition: HasThirdSubnet
     Properties:
       FileSystemId: !Ref PosSharedFileSystem
-      SubnetId: !Ref PrivateSubnetC
+      SubnetId: !Ref BackendSubnetC
       SecurityGroups:
         - !Ref EfsMountTargetSecurityGroup
 

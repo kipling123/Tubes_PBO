@@ -62,6 +62,10 @@ data "aws_cloudfront_cache_policy" "disabled" {
   name = "Managed-CachingDisabled"
 }
 
+data "aws_cloudfront_origin_request_policy" "all_viewer_except_host" {
+  name = "Managed-AllViewerExceptHostHeader"
+}
+
 resource "aws_cloudfront_distribution" "frontend" {
   enabled             = true
   is_ipv6_enabled     = true
@@ -73,6 +77,23 @@ resource "aws_cloudfront_distribution" "frontend" {
     domain_name              = aws_s3_bucket.frontend.bucket_regional_domain_name
     origin_id                = "s3-frontend"
     origin_access_control_id = aws_cloudfront_origin_access_control.frontend.id
+  }
+
+  dynamic "origin" {
+    for_each = var.api_origin_domain_name == "" ? [] : [var.api_origin_domain_name]
+    content {
+      domain_name = origin.value
+      origin_id   = "alb-api"
+
+      custom_origin_config {
+        http_port                = 80
+        https_port               = 443
+        origin_protocol_policy   = var.api_origin_protocol_policy
+        origin_ssl_protocols     = ["TLSv1.2"]
+        origin_read_timeout      = 60
+        origin_keepalive_timeout = 5
+      }
+    }
   }
 
   # Aset ber-hash dari Vite: cache panjang.
@@ -94,6 +115,20 @@ resource "aws_cloudfront_distribution" "frontend" {
     cached_methods         = ["GET", "HEAD"]
     compress               = true
     cache_policy_id        = data.aws_cloudfront_cache_policy.disabled.id
+  }
+
+  dynamic "ordered_cache_behavior" {
+    for_each = var.api_origin_domain_name == "" ? [] : [var.api_origin_domain_name]
+    content {
+      path_pattern             = "/api/*"
+      target_origin_id         = "alb-api"
+      viewer_protocol_policy   = "redirect-to-https"
+      allowed_methods          = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+      cached_methods           = ["GET", "HEAD", "OPTIONS"]
+      compress                 = true
+      cache_policy_id          = data.aws_cloudfront_cache_policy.disabled.id
+      origin_request_policy_id = data.aws_cloudfront_origin_request_policy.all_viewer_except_host.id
+    }
   }
 
   # SPA fallback: route dalam seperti /cashier harus mengembalikan index.html.

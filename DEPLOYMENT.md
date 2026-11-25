@@ -24,10 +24,12 @@ cara kedua stack Terraform itu saling melengkapi.
 flowchart LR
     U[Browser Kasir] -->|HTTPS| CF[CloudFront]
     CF -->|OAC| S3[(S3 Bucket<br/>React dist)]
-    U -->|HTTPS /api/*| ALB[ALB<br/>member 2]
+   U -->|HTTPS /api/* same-origin| CF
+   CF -->|HTTP origin /api/*| ALB[ALB<br/>member 2]
     ALB -->|HTTP :80| N[EC2 Ubuntu 24.04<br/>Nginx :80]
     N -->|127.0.0.1:8000| G[Gunicorn]
-    G --> D[Django + in-memory JSON]
+   G --> D[Django + JSON/Dict]
+   D -->|POS_DATA_FILE| E[(EFS shared JSON<br/>lock + atomic replace)]
 ```
 
 Yang menjadi tanggung jawab dokumen ini:
@@ -91,6 +93,13 @@ terraform plan -out=tfplan
 terraform apply tfplan
 ```
 
+Stack frontend dapat dibuat sebelum ALB tersedia. Setelah stack backend jadi,
+set `api_origin_domain_name` di `deploy/terraform/terraform.tfvars` ke output
+`alb_origin_domain_name` dari `infra/aws`, lalu jalankan `terraform apply`
+kembali agar behavior `/api/*` aktif. Untuk TLS dari CloudFront ke ALB, gunakan
+custom API hostname dengan sertifikat ACM dan set
+`api_origin_protocol_policy = "https-only"`.
+
 Output penting:
 
 ```bash
@@ -104,7 +113,7 @@ terraform output s3_bucket_name
 ```bash
 export S3_BUCKET="$(terraform -chdir=deploy/terraform output -raw s3_bucket_name)"
 export CLOUDFRONT_DISTRIBUTION_ID="$(terraform -chdir=deploy/terraform output -raw cloudfront_distribution_id)"
-export VITE_API_BASE_URL="https://<alb-dns>/api"   # dari member 2
+export VITE_API_BASE_URL="/api"   # CloudFront meneruskan /api/* ke ALB
 
 bash deploy/scripts/deploy-frontend.sh
 ```
@@ -125,6 +134,7 @@ Skrip akan:
 | SPA route dalam | Custom error 403/404 → `/index.html` (200) |
 | `index.html` selalu baru | Ordered cache behavior `Managed-CachingDisabled` |
 | Aset ber-hash | Default behavior `Managed-CachingOptimized` |
+| API tanpa mixed content | Ordered behavior `/api/*` ke origin ALB, cache disabled |
 | HTTPS | `redirect-to-https` + sertifikat default CloudFront |
 
 ---
@@ -134,7 +144,9 @@ Skrip akan:
 ### 5.1 Melalui stack `infra/aws` (direkomendasikan)
 
 Compute dibuat oleh stack **Load Balancing Engineer** di `infra/aws/` agar
-EC2/ASG dan ALB berada dalam satu VPC yang sama:
+EC2/ASG dan ALB berada dalam satu VPC yang sama. Frontend CloudFront memakai
+ALB sebagai origin `/api/*`, jadi browser memakai same-origin `/api` dan tidak
+terkena mixed-content/CORS lintas origin:
 
 ```bash
 cd infra/aws
@@ -156,11 +168,19 @@ Launch Template menjalankan `user_data.sh.tftpl`, yang:
 
 `deploy/terraform/` **hanya** membuat S3 + CloudFront. Tidak ada EC2/SG ganda.
 
-> **Penting:** `backend_git_ref` harus menunjuk branch yang sudah memuat
-> `deploy/scripts/setup-ec2.sh`, `deploy/nginx/pos.conf`, dan
-> `deploy/systemd/pos-backend.service` (yaitu branch ini). Branch `main` belum
-> memuat file-file tersebut selama PR belum di-merge. Set `backend_git_ref`
-> ke branch yang sudah tersedia di remote sebelum `terraform apply`.
+`backend_git_ref` harus menunjuk branch remote yang memuat file deployment,
+termasuk `deploy/scripts/setup-ec2.sh`, `deploy/nginx/pos.conf`, dan
+`infra/aws/scripts/setup-efs-mount.sh`. Setelah merge ke `main`, gunakan
+`backend_git_ref = "main"`; jika belum merge, gunakan branch remote integrasi
+yang sudah berisi perubahan dari ketiga anggota.
+
+Setelah stack ALB/ASG dan EFS siap, set `api_origin_domain_name` pada
+`deploy/terraform/terraform.tfvars` ke output `alb_origin_domain_name`, lalu
+re-apply stack frontend. Untuk enkripsi CloudFront→ALB, gunakan custom hostname
+yang diarahkan ke ALB, pasang sertifikat ACM untuk hostname tersebut di ALB,
+set `api_origin_protocol_policy = "https-only"`, dan masukkan hostname itu ke
+`additional_allowed_hosts` stack backend. Mode default `http-only` hanya untuk
+demo kelas; viewer tetap memakai HTTPS ke CloudFront.
 
 ### 5.2 Manual di EC2
 
@@ -314,13 +334,14 @@ Gunicorn **wajib** bind ke `127.0.0.1:8000`, bukan `0.0.0.0:8000`.
 | ALB → EC2 | SG backend menerima port 80 dari SG ALB | Sudah ada di `infra/aws` |
 | Health check | `GET /api/health/` (200 JSON) | Target Group: port 80, path `/api/health/` |
 | Frontend → API | `VITE_API_BASE_URL` saat build | DNS/URL ALB |
-| EFS shared state | `ReadWritePaths` di systemd | Path mount EFS |
+| EFS shared state | `POS_DATA_FILE`, systemd mount dependency, dan EFS IAM profile | Outputs EFS: FileSystemId, AccessPointId, Ec2InstanceProfileName |
 | HTTPS API | Nginx siap di belakang ALB | ACM/ALB dari member 2 |
 
-Catatan penting untuk member 3 (EFS): `data_store.py` saat ini memuat JSON
-sekali saat proses start dan menulis tanpa lock. Menaruh file di EFS saja
-**tidak** membuat state konsisten antar instance. Perlu file lock + reload,
-atau desain single-writer. Itu di luar scope task 1 dan sengaja tidak diubah.
+Catatan integrasi EFS: backend pada branch ini telah membaca ulang snapshot
+JSON di dalam lock lintas proses, mengunci operasi lintas instance, dan menulis
+file melalui atomic replace. Untuk mengaktifkannya, ikuti urutan dua tahap di
+`infra/aws/README.md` dan `infra/aws/SHARED_STORAGE.md`; jangan jalankan instance
+backend untuk transaksi POS sebelum EFS outputs dipasang ke Launch Template.
 
 ---
 
@@ -331,7 +352,9 @@ atau desain single-writer. Itu di luar scope task 1 dan sengaja tidak diubah.
 2. Tanpa ALB/domain, API belum punya HTTPS. Frontend CloudFront yang HTTPS
    tidak boleh memanggil API HTTP (mixed content). Solusi: sediakan ALB + ACM
    (member 2), atau tambahkan origin EC2 ke CloudFront untuk path `/api/*`.
-3. Multi-instance/EFS belum konsisten sampai member 3 menambahkan locking.
+3. Multi-instance POS memerlukan EFS CloudFormation stack dan tiga output EFS
+   dikonfigurasi ke Launch Template; lakukan smoke test read-only sebelum uji
+   checkout lintas instance.
 4. `CORS_ALLOWED_ORIGINS` harus diisi domain CloudFront setelah distribusi jadi.
 5. CloudFront butuh waktu 5–15 menit saat pembuatan/perubahan distribusi.
 

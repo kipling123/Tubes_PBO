@@ -9,11 +9,22 @@ set -euo pipefail
 exec > >(tee -a /var/log/pos-bootstrap.log | logger -t user-data -s 2>/dev/console) 2>&1
 
 apt-get update
-DEBIAN_FRONTEND=noninteractive apt-get install -y git
+DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl git
 
 if [[ ! -d /opt/pos/.git ]]; then
   mkdir -p /opt
   git clone --depth 1 --branch "${backend_git_ref}" "${backend_repo_url}" /opt/pos
+fi
+
+if [[ -n "${efs_file_system_id}" ]]; then
+  curl -fsSL https://amazon-efs-utils.aws.com/efs-utils-installer.sh \
+    -o /tmp/efs-utils-installer.sh
+  bash /tmp/efs-utils-installer.sh --install
+  rm -f /tmp/efs-utils-installer.sh
+
+  bash /opt/pos/infra/aws/scripts/setup-efs-mount.sh \
+    "${efs_file_system_id}" "${efs_region}" "${efs_access_point_id}"
+  export POS_DATA_FILE=/mnt/pos-efs/data_store.json
 fi
 
 # setup-ec2.sh idempoten: tidak menimpa /etc/pos/backend.env yang sudah ada.

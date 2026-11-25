@@ -1,5 +1,9 @@
 locals {
-  availability_zones = slice(data.aws_availability_zones.available.names, 0, 2)
+  availability_zones      = slice(data.aws_availability_zones.available.names, 0, 2)
+  efs_settings            = [var.efs_file_system_id, var.efs_access_point_id, var.efs_instance_profile_name]
+  efs_enabled             = alltrue([for setting in local.efs_settings : setting != ""])
+  efs_disabled            = alltrue([for setting in local.efs_settings : setting == ""])
+  efs_configuration_valid = local.efs_enabled || local.efs_disabled
 }
 
 resource "aws_vpc" "main" {
@@ -169,17 +173,8 @@ resource "aws_lb_listener" "http" {
   protocol          = "HTTP"
 
   default_action {
-    type             = var.acm_certificate_arn == "" ? "forward" : "redirect"
-    target_group_arn = var.acm_certificate_arn == "" ? aws_lb_target_group.api.arn : null
-
-    dynamic "redirect" {
-      for_each = var.acm_certificate_arn == "" ? [] : [1]
-      content {
-        port        = "443"
-        protocol    = "HTTPS"
-        status_code = "HTTP_301"
-      }
-    }
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.api.arn
   }
 }
 
@@ -199,15 +194,26 @@ resource "aws_lb_listener" "https" {
 
 resource "aws_launch_template" "backend" {
   name_prefix   = "${var.name_prefix}-backend-"
-  image_id      = data.aws_ami.ubuntu.id
+  image_id      = data.aws_ssm_parameter.ubuntu_2404_amd64.value
   instance_type = var.instance_type
   key_name      = var.key_name == "" ? null : var.key_name
   user_data = base64encode(templatefile("${path.module}/user_data.sh.tftpl", {
-    backend_repo_url     = var.backend_repo_url
-    backend_git_ref      = var.backend_git_ref
-    django_allowed_hosts = join(",", concat([aws_lb.api.dns_name], var.additional_allowed_hosts))
-    cors_allowed_origins = join(",", concat(["http://localhost:8080", "http://127.0.0.1:8080"], var.additional_cors_origins))
+    backend_repo_url          = var.backend_repo_url
+    backend_git_ref           = var.backend_git_ref
+    django_allowed_hosts      = join(",", concat([aws_lb.api.dns_name], var.additional_allowed_hosts))
+    cors_allowed_origins      = join(",", concat(["http://localhost:8080", "http://127.0.0.1:8080"], var.additional_cors_origins))
+    efs_file_system_id        = var.efs_file_system_id
+    efs_access_point_id       = var.efs_access_point_id
+    efs_instance_profile_name = var.efs_instance_profile_name
+    efs_region                = var.aws_region
   }))
+
+  dynamic "iam_instance_profile" {
+    for_each = var.efs_instance_profile_name == "" ? [] : [var.efs_instance_profile_name]
+    content {
+      name = iam_instance_profile.value
+    }
+  }
 
   network_interfaces {
     associate_public_ip_address = true
@@ -230,6 +236,11 @@ resource "aws_launch_template" "backend" {
 
   lifecycle {
     create_before_destroy = true
+
+    precondition {
+      condition     = local.efs_configuration_valid
+      error_message = "Set efs_file_system_id, efs_access_point_id, and efs_instance_profile_name together, or leave all three empty."
+    }
   }
 }
 
@@ -242,6 +253,15 @@ resource "aws_autoscaling_group" "backend" {
   health_check_grace_period = 300
   vpc_zone_identifier       = aws_subnet.public[*].id
   target_group_arns         = [aws_lb_target_group.api.arn]
+
+  instance_refresh {
+    strategy = "Rolling"
+
+    preferences {
+      min_healthy_percentage = 50
+      instance_warmup        = 300
+    }
+  }
 
   launch_template {
     id      = aws_launch_template.backend.id
